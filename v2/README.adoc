@@ -1,0 +1,4 @@
+= TEZ2
+
+== 3D print files
+The OpenScad files were generated using https://github.com/50an6xy06r6n/hotswap_pcb_generator[hotswap_pcb_generator] project.
