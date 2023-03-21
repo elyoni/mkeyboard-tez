@@ -63,16 +63,16 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         // |--------------------|--------------------|--------------------|--------------------|--------------------|      |--------------------|--------------------|--------------------|--------------------|--------------------|
         //
     [SYMB] = LAYOUT_tez(
-            KC_CH_LNG,     KC_ESCAPE,           KC_ENTER,            KC_TRANSPARENT,      KC_TRANSPARENT,             KC_BSLASH,           RSFT(KC_BSLASH),     KC_QUOTE,            KC_DQUO,             ST_MACRO_2,    
+            KC_CH_LNG,           KC_ESCAPE,           KC_ENTER,            KC_TRANSPARENT,      KC_TRANSPARENT,             KC_BSLASH,           RSFT(KC_BSLASH),     KC_QUOTE,            KC_DQUO,             ST_MACRO_2,    
             LCTL(KC_A),          LCTL(KC_E),          KC_PC_PASTE,         KC_TRANSPARENT,      KC_TRANSPARENT,             KC_CIRC,             KC_ASTR,             KC_HASH,             KC_DLR,              KC_UNDS,       
             KC_PC_UNDO,          KC_PC_CUT,           KC_PC_COPY,          KC_PC_PASTE,         KC_TRANSPARENT,             KC_TRANSPARENT,      KC_TILD,             KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT,
             KC_TRANSPARENT,      KC_TRANSPARENT,      KC_CH_LNG,           KC_TRANSPARENT,                                                       KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT
             ),
     [OTHER] = LAYOUT_tez(
-            RGB_TOG,             RGB_MOD,             RGB_RMOD,            RGB_M_B,      RGB_M_P,             KC_BSLASH,           RSFT(KC_BSLASH),     KC_QUOTE,            KC_DQUO,             ST_MACRO_2,    
-            RGB_HUI,             RGB_SAI,             RGB_VAI,             KC_TRANSPARENT,      KC_TRANSPARENT,             KC_CIRC,             KC_ASTR,             KC_HASH,             KC_DLR,              KC_UNDS,       
-            RGB_HUD,             RGB_SAD,             RGB_VAD,             KC_PC_PASTE,         KC_TRANSPARENT,             KC_TRANSPARENT,      KC_TILD,             KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT,
-            LSFT(KC_LALT),       KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT,                                                       KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT
+            KC_VOLU,             KC_MUTE,             KC_BRIU,             RGB_M_B,             RGB_TOG,                    KC_BSLASH,           RSFT(KC_BSLASH),     KC_QUOTE,            KC_DQUO,             ST_MACRO_2,    
+            KC_VOLD,             KC_NO,               KC_NO,               KC_TRANSPARENT,      KC_TRANSPARENT,             KC_CIRC,             KC_ASTR,             KC_HASH,             KC_DLR,              KC_UNDS,       
+            KC_NO,               KC_NO,               KC_NO,               KC_NO,               KC_TRANSPARENT,             KC_TRANSPARENT,      KC_TILD,             KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT,
+            KC_NO,               KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT,                                                       KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT
             ),
     [GAMEM_L] = LAYOUT_tez(
             KC_Q,                KC_W,                KC_E,                KC_R,                KC_T,                       KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT,
