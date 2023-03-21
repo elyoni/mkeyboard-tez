@@ -34,11 +34,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // sides without need to wire them into a chain. It doesn't though. Uncommenting
 // means the slave side of the keyboard stops working (and the LEDs don't work).
 #define RGBLED_SPLIT {6,6}
-#define RGBLIGHT_ANIMATIONS
-#define RGBLIGHT_MODE_BREATHING
-#define RGBLIGHT_EFFECT_ALTERNATING
-#define RGBLIGHT_EFFECT_KNIGHT
-#define RGBLIGHT_EFFECT_SNAKE
+#define RGBLIGHT_LAYERS
 // #define RGBLIGHT_DEFAULT_MODE 
 
 /*

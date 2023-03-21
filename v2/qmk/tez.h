@@ -24,4 +24,4 @@
 #define KC_BSLASH KC_BACKSLASH
 #define KC_PC_UNDO KC_UNDO
 
-
+#define KC_CH_LNG LALT(KC_LSHIFT)
