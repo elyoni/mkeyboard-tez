@@ -1,18 +1,40 @@
 {
-  "keyboard_name": "Ergoslab Keyboard",
-  "manufacturer": "tomsaleeba",
-  "url": "https://github.com/tomsaleeba/ergoslab",
-  "maintainer": "tomsaleeba",
+  "keyboard_name": "tez Keyboard",
+  "manufacturer": "yoni",
+  "url": "",
+  "maintainer": "yoni",
   "usb": {
     "vid": "0xFEED",
     "pid": "0x0000",
     "device_version": "1.0.0"
   },
+  "split": {
+    "soft_serial_pin": "D2"
+  },
   "processor": "atmega32u4",
   "bootloader": "caterina",
   "layouts": {
-    "LAYOUT_ergoslab": {
+    "LAYOUT_tez": {
            "layout": [
+               {"label":"E", "x":3.5, "y":1},
+               {"label":"I", "x":15, "y":1},
+               {"label":"W", "x":2.5, "y":1.1300000000000001},
+               {"label":"R", "x":4.5, "y":1.1300000000000001},
+               {"label":"U", "x":14, "y":1.1300000000000001},
+               {"label":"O", "x":16, "y":1.1300000000000001},
+               {"label":"T", "x":5.5, "y":1.25},
+               {"label":"Y", "x":13, "y":1.25},
+               {"label":"Q", "x":1.5, "y":1.3800000000000001},
+               {"label":"P", "x":17, "y":1.3800000000000001},
+               {"label":"D", "x":3.5, "y":2},
+               {"label":"E", "x":3.5, "y":1},
+               {"label":"I", "x":15, "y":1},
+               {"label":"W", "x":2.5, "y":1.1300000000000001},
+               {"label":"R", "x":4.5, "y":1.1300000000000001},
+               {"label":"U", "x":14, "y":1.1300000000000001},
+               {"label":"O", "x":16, "y":1.1300000000000001},
+               {"label":"T", "x":5.5, "y":1.25},
+               {"label":"Y", "x":13, "y":1.25},
                {"label":"E", "x":3.5, "y":1},
                {"label":"I", "x":15, "y":1},
                {"label":"W", "x":2.5, "y":1.1300000000000001},
