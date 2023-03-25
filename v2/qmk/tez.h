@@ -25,3 +25,8 @@
 #define KC_PC_UNDO KC_UNDO
 
 #define KC_CH_LNG LALT(KC_LSHIFT)
+
+#define KC_COPY LCTL(KC_C)
+#define KC_PASTE LCTL(KC_V)
+#define KC_CUT LCTL(KC_X)
+#define KC_M_ALL LCTL(KC_A)
