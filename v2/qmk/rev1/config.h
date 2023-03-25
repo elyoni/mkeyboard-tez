@@ -35,6 +35,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // means the slave side of the keyboard stops working (and the LEDs don't work).
 #define RGBLED_SPLIT {6,6}
 #define RGBLIGHT_LAYERS
+#define RGBLIGHT_EFFECT_BREATHING
 // #define RGBLIGHT_DEFAULT_MODE 
 
 /*
