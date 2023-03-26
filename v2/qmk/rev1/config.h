@@ -20,7 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // wiring of each half
 #define MATRIX_ROW_PINS { D4, C6, D7, E6 }
 #define MATRIX_COL_PINS { B4, B5, B6, B3, B2 }
-#define MATRIX_COL_PINS_LEFT { B4, B5, B6, B2, B3 }
+ // #define MATRIX_COL_PINS { B4, B5, B6, B2, B3 }
+#define MATRIX_COL_PINS_RIGHT { B4, B5, B6, B2, B3 }
 
 /* COL2ROW or ROW2COL */
 // #define DIODE_DIRECTION COL2ROW
