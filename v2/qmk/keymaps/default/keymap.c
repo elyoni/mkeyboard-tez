@@ -53,13 +53,13 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
             KC_BSPACE,           KC_ESCAPE,           KC_ENTER,            KC_TRANSPARENT,      KC_GRAVE,                   KC_SLASH,            KC_7,                MT(MOD_RSFT, KC_8),  KC_9,                KC_ASTR,
             KC_LCTRL,            KC_LGUI,             KC_LSHIFT,           KC_TRANSPARENT,      KC_F,                       KC_EQUAL,            KC_4,                KC_5,                KC_6,                MT(MOD_RCTL, KC_MINUS),
             KC_LALT,             KC_CUT,              KC_COPY,             KC_PASTE,            KC_TRANSPARENT,             KC_PLUS,             KC_1,                KC_2,                KC_3,                KC_KP_DOT,
-            KC_NUMLOCK,          KC_TRANSPARENT,      QK_BOOTLOADER,      KC_TRANSPARENT,                                                       QK_BOOTLOADER,       KC_TRANSPARENT,      KC_TRANSPARENT,      KC_0
+            KC_NUMLOCK,          KC_TRANSPARENT,      QK_BOOTLOADER,       KC_TRANSPARENT,                                                       QK_BOOTLOADER,       KC_TRANSPARENT,      KC_TRANSPARENT,      KC_0
             ),
     [MOUSE_F] = LAYOUT_tez(
             KC_MS_WH_LEFT,       KC_MS_WH_DOWN,       KC_MS_UP,            KC_MS_WH_UP,         KC_MS_WH_RIGHT,              KC_F11,             KC_F7,               KC_F8,               KC_F9,               KC_F12,        
             KC_MS_BTN1,          KC_MS_LEFT,          KC_MS_DOWN,          KC_MS_RIGHT,         RCTL(KC_RSHIFT),             KC_TRANSPARENT,     KC_F4,               KC_F5,               KC_F6,               KC_F10,        
             KC_MS_BTN2,          KC_MS_BTN3,          KC_TRANSPARENT,      KC_LGUI,             LCTL(KC_LSHIFT),             KC_TRANSPARENT,     KC_F1,               KC_F2,               KC_F3,               KC_TRANSPARENT,
-            KC_TRANSPARENT,      KC_MS_BTN1,          KC_MS_BTN2,          KC_TRANSPARENT,                                                       KC_TRANSPARENT,      KC_MS_BTN1,          KC_MS_BTN2,          KC_TRANSPARENT
+            KC_TRANSPARENT,      KC_MS_BTN1,          KC_MS_BTN2,          KC_TRANSPARENT,                                                       KC_TRANSPARENT,      KC_MS_BTN1,          KC_MS_BTN2,          KC_MS_BTN1 
             ),
         // |--------------------|--------------------|--------------------|--------------------|--------------------|      |--------------------|--------------------|--------------------|--------------------|--------------------|
         //
