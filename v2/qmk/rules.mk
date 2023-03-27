@@ -15,3 +15,5 @@ SERIAL_DRIVER = bitbang
 SPLIT_KEYBOARD = yes
 
 DEFAULT_FOLDER = tez/rev1
+
+SRC += features/layer_lock.c

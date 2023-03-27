@@ -1,10 +1,10 @@
 #include QMK_KEYBOARD_H
-
+#include "features/layer_lock.h"
 
 enum custom_keycodes {
-  ST_MACRO_0,
   ST_MACRO_1,
   ST_MACRO_2,
+  LLOCK,
 };
 
 /** enum layer_names { */
@@ -47,19 +47,19 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
             KC_TRANSPARENT,      KC_EXLM,             KC_LBRACKET,         KC_RBRACKET,         LSFT(KC_TAB),               KC_HOME,             KC_PGDOWN,           KC_PGUP,             KC_DELETE,           LSFT(KC_F10),
             KC_LCTRL,            LSFT(KC_LALT),       KC_LPRN,             KC_RPRN,             KC_TAB,                     KC_LEFT,             KC_DOWN,             KC_UP,               KC_RIGHT,            KC_RCTRL,
             KC_LALT,             ST_MACRO_1,          KC_LCBR,             KC_RCBR,             KC_GRAVE,                   KC_END,              KC_INSERT,           KC_WBAK,             KC_WFWD,             KC_ENTER,
-            KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT,      KC_PRINT_SCREEN,                                                      KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT,      TG(GAMEM_L)
+            KC_PRINT_SCREEN,     KC_TRANSPARENT,      KC_TRANSPARENT,      LLOCK,                                                                KC_TRANSPARENT,      KC_TRANSPARENT,      KC_TRANSPARENT,      TG(GAMEM_L)
             ),
     [NUMPAD] = LAYOUT_tez(
             KC_BSPACE,           KC_ESCAPE,           KC_ENTER,            KC_TRANSPARENT,      KC_GRAVE,                   KC_SLASH,            KC_7,                MT(MOD_RSFT, KC_8),  KC_9,                KC_ASTR,
             KC_LCTRL,            KC_LGUI,             KC_LSHIFT,           KC_TRANSPARENT,      KC_F,                       KC_EQUAL,            KC_4,                KC_5,                KC_6,                MT(MOD_RCTL, KC_MINUS),
             KC_LALT,             KC_CUT,              KC_COPY,             KC_PASTE,            KC_TRANSPARENT,             KC_PLUS,             KC_1,                KC_2,                KC_3,                KC_KP_DOT,
-            KC_NUMLOCK,          KC_TRANSPARENT,      QK_BOOTLOADER,       KC_TRANSPARENT,                                                       QK_BOOTLOADER,       KC_TRANSPARENT,      KC_TRANSPARENT,      KC_0
+            KC_NUMLOCK,          KC_TRANSPARENT,      QK_BOOTLOADER,       LLOCK,                                                                QK_BOOTLOADER,       KC_TRANSPARENT,      KC_TRANSPARENT,      KC_0
             ),
     [MOUSE_F] = LAYOUT_tez(
             KC_MS_WH_LEFT,       KC_MS_WH_DOWN,       KC_MS_UP,            KC_MS_WH_UP,         KC_MS_WH_RIGHT,              KC_F11,             KC_F7,               KC_F8,               KC_F9,               KC_F12,        
             KC_MS_BTN1,          KC_MS_LEFT,          KC_MS_DOWN,          KC_MS_RIGHT,         RCTL(KC_RSHIFT),             KC_TRANSPARENT,     KC_F4,               KC_F5,               KC_F6,               KC_F10,        
             KC_MS_BTN2,          KC_MS_BTN3,          KC_TRANSPARENT,      KC_LGUI,             LCTL(KC_LSHIFT),             KC_TRANSPARENT,     KC_F1,               KC_F2,               KC_F3,               KC_TRANSPARENT,
-            KC_TRANSPARENT,      KC_MS_BTN1,          KC_MS_BTN2,          KC_TRANSPARENT,                                                       KC_TRANSPARENT,      KC_MS_BTN1,          KC_MS_BTN2,          KC_MS_BTN1 
+            KC_TRANSPARENT,      KC_MS_BTN1,          KC_MS_BTN2,          LLOCK,                                                                KC_TRANSPARENT,      KC_MS_BTN1,          KC_MS_BTN2,          KC_MS_BTN1 
             ),
         // |--------------------|--------------------|--------------------|--------------------|--------------------|      |--------------------|--------------------|--------------------|--------------------|--------------------|
         //
@@ -95,21 +95,18 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     /**         ), */
 };
 
-
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+
+    if (!process_layer_lock(keycode, record, LLOCK)) { return false; }
+
     switch (keycode) {
         case ST_MACRO_1:
             if (record->event.pressed) {
                 SEND_STRING(SS_LSFT(SS_TAP(X_SEMICOLON)) SS_DELAY(100) SS_TAP(X_Q) SS_DELAY(100) SS_LSFT(SS_TAP(X_1)));
             }
             break;
-        case ST_MACRO_2:
-            if (record->event.pressed) {
-                SEND_STRING(SS_LCTL(SS_TAP(X_R)) SS_DELAY(100) SS_LSFT(SS_TAP(X_QUOTE)));
-            }
-            break;
-
     }
+
     return true;
 }
 
