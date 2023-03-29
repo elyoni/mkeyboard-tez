@@ -34,12 +34,13 @@ enum layer_names {
 #define HSV_ERGOSLAB_CYAN 128, 255, ERGOSLAB_BRIGHTNESS
 #define HSV_ERGOSLAB_TEST 100, 50, ERGOSLAB_BRIGHTNESS
 #endif
+#LT(SYMB,KC_V)
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     // |--------------------|--------------------|--------------------|--------------------|--------------------|      |--------------------|--------------------|--------------------|--------------------|--------------------|
     [BASE] = LAYOUT_tez(
             KC_Q,                KC_W,                KC_E,                KC_R,                KC_T,                       KC_Y,                KC_U,                MT(MOD_RSFT, KC_I),  MT(MOD_RGUI, KC_O),  KC_P,
             MT(MOD_LCTL, KC_A),  MT(MOD_LGUI, KC_S),  MT(MOD_LSFT, KC_D),  LT(NUMPAD,KC_F),     KC_G,                       KC_H,                KC_J,                KC_K,                KC_L,                MT(MOD_RCTL, KC_SCOLON),
-            MT(MOD_LALT, KC_Z),  KC_X,                KC_C,                LT(SYMB,KC_V),       KC_B,                       KC_N,                KC_M,                KC_COMMA,            KC_DOT,              LT(MOUSE_F,KC_SLASH),
+            MT(MOD_LALT, KC_Z),  KC_X,                KC_C,                KC_V,                KC_B,                       KC_N,                KC_M,                KC_COMMA,            KC_DOT,              LT(MOUSE_F,KC_SLASH),
             OSL(SYMB),           LT(NUMPAD,KC_SPACE), KC_LSHIFT,           MO(OTHER),                                                            KC_NO,               LT(SYMB,KC_BSPACE),  LT(MOVE,KC_ENTER),   KC_NO
             ),
 
@@ -58,7 +59,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [MOUSE_F] = LAYOUT_tez(
             KC_MS_WH_LEFT,       KC_MS_WH_DOWN,       KC_MS_UP,            KC_MS_WH_UP,         KC_MS_WH_RIGHT,              KC_F11,             KC_F7,               KC_F8,               KC_F9,               KC_F12,        
             KC_MS_BTN1,          KC_MS_LEFT,          KC_MS_DOWN,          KC_MS_RIGHT,         RCTL(KC_RSHIFT),             KC_TRANSPARENT,     KC_F4,               KC_F5,               KC_F6,               KC_F10,        
-            KC_MS_BTN2,          KC_MS_BTN3,          KC_TRANSPARENT,      KC_LGUI,             LCTL(KC_LSHIFT),             KC_TRANSPARENT,     KC_F1,               KC_F2,               KC_F3,               KC_TRANSPARENT,
+            KC_MS_BTN2,          KC_MS_BTN3,          KC_COPY,             KC_PASTE,            LCTL(KC_LSHIFT),             KC_TRANSPARENT,     KC_F1,               KC_F2,               KC_F3,               KC_TRANSPARENT,
             KC_TRANSPARENT,      KC_MS_BTN1,          KC_MS_BTN2,          LLOCK,                                                                KC_TRANSPARENT,      KC_MS_BTN1,          KC_MS_BTN2,          KC_MS_BTN1 
             ),
         // |--------------------|--------------------|--------------------|--------------------|--------------------|      |--------------------|--------------------|--------------------|--------------------|--------------------|
@@ -72,7 +73,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [OTHER] = LAYOUT_tez(
             KC_VOLU,             KC_MUTE,             KC_BRIU,             RGB_M_B,             RGB_TOG,                    KC_NO,               KC_NO,               KC_NO,               KC_NO,               KC_NO,    
             KC_VOLD,             KC_NO,               KC_BRID,             KC_NO,               KC_NO,                      KC_NO,               KC_NO,               KC_NO,               KC_NO,               KC_NO,       
-            KC_NO,               KC_NO,               KC_NO,               KC_NO,               KC_NO,                      KC_NO,               KC_NO,               KC_NO,               KC_NO,               KC_NO,
+            KC_NO,               KC_NO,               KC_NO,               KC_NO,               QK_BOOTLOADER,              KC_NO,               KC_NO,               KC_NO,               KC_NO,               KC_NO,
             KC_NO,               KC_NO,               KC_NO,               KC_NO,                                                                KC_NO,               KC_NO,               KC_NO,               KC_NO 
             ),
     [GAMEM_L] = LAYOUT_tez(
