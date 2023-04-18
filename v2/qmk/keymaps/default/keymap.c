@@ -27,21 +27,22 @@ enum layer_names {
 };
 
 #ifdef RGBLIGHT_ENABLE
-#define ERGOSLAB_BRIGHTNESS 200
-#define HSV_ERGOSLAB_ORANGE 28, 255, 16
-#define HSV_ERGOSLAB_RED 0, 255, ERGOSLAB_BRIGHTNESS
-#define HSV_ERGOSLAB_GREEN 85, 255, ERGOSLAB_BRIGHTNESS
-#define HSV_ERGOSLAB_CYAN 128, 255, ERGOSLAB_BRIGHTNESS
-#define HSV_ERGOSLAB_TEST 100, 50, ERGOSLAB_BRIGHTNESS
+#define LED_BRIGHTNESS 200
+#define HSV_LED_ORANGE 28, 255, 16
+#define HSV_LED_RED 0, 255, LED_BRIGHTNESS
+#define HSV_LED_GREEN 85, 255, LED_BRIGHTNESS
+#define HSV_LED_CYAN 128, 255, LED_BRIGHTNESS
+#define HSV_LED_YELLOW 63, 100, LED_BRIGHTNESS
+#define HSV_LED_TEST 100, 50, LED_BRIGHTNESS
 #endif
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     // |--------------------|--------------------|--------------------|--------------------|--------------------|      |--------------------|--------------------|--------------------|--------------------|--------------------|
     [BASE] = LAYOUT_tez(
-            KC_Q,                KC_W,                KC_E,                KC_R,                KC_T,                       KC_Y,                KC_U,                MT(MOD_RSFT, KC_I),  MT(MOD_RGUI, KC_O),  KC_P,
-            MT(MOD_LCTL, KC_A),  MT(MOD_LGUI, KC_S),  MT(MOD_LSFT, KC_D),  LT(NUMPAD,KC_F),     KC_G,                       KC_H,                KC_J,                KC_K,                KC_L,                MT(MOD_RCTL, KC_SCOLON),
+            KC_Q,                KC_W,                KC_E,                KC_R,                KC_T,                       KC_Y,                KC_U,                KC_I,                KC_O,                KC_P,
+            MT(MOD_LCTL, KC_A),  MT(MOD_LGUI, KC_S),  MT(MOD_LSFT, KC_D),  LT(NUMPAD,KC_F),     KC_G,                       KC_H,                MT(MOD_LALT,KC_J),   MT(MOD_RSFT,KC_K),   MT(MOD_RGUI, KC_L),  MT(MOD_RCTL, KC_SCOLON),
             MT(MOD_LALT, KC_Z),  KC_X,                KC_C,                LT(SYMB,KC_V),       KC_B,                       KC_N,                KC_M,                KC_COMMA,            KC_DOT,              LT(MOUSE_F,KC_SLASH),
-            OSL(SYMB),           LT(NUMPAD,KC_SPACE), KC_LSHIFT,           MO(OTHER),                                                            KC_NO,               LT(SYMB,KC_BSPACE),  LT(MOVE,KC_ENTER),   KC_NO
+            LT(NUMPAD,KC_SPACE), KC_LSHIFT,           OSL(SYMB),           MO(OTHER),                                                            KC_NO,               KC_NO,               LT(SYMB,KC_BSPACE),  LT(MOVE,KC_ENTER)
             ),
 
     [MOVE] = LAYOUT_tez(
@@ -116,20 +117,23 @@ layer_state_t layer_state_set_user(layer_state_t state) {
   uint8_t layer = get_highest_layer(state);
   switch (layer) {
       case BASE:
-          rgblight_sethsv(HSV_ERGOSLAB_ORANGE);
+          rgblight_sethsv(HSV_LED_ORANGE);
         break;
       case MOVE:
-          rgblight_sethsv(HSV_ERGOSLAB_RED);
+          rgblight_sethsv(HSV_LED_RED);
         break;
       case NUMPAD:
-          rgblight_sethsv(HSV_ERGOSLAB_GREEN);
+          rgblight_sethsv(HSV_LED_GREEN);
         break;
       case MOUSE_F:
-          rgblight_sethsv(HSV_ERGOSLAB_CYAN);
+          rgblight_sethsv(HSV_LED_CYAN);
+        break;
+      case SYMB:
+          rgblight_sethsv(HSV_LED_YELLOW);
         break;
       case GAMEM_L:
       case GAMEM_R:
-          rgblight_sethsv(HSV_ERGOSLAB_TEST);
+          rgblight_sethsv(HSV_LED_TEST);
         break;
       default:
         break;
