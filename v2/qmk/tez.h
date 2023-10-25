@@ -27,6 +27,9 @@
 #define KC_CH_LNG LALT(KC_LSHIFT)
 
 #define KC_COPY LCTL(KC_C)
+#define KC_COPY2 LCTL(KC_INSERT)
 #define KC_PASTE LCTL(KC_V)
+#define KC_PASTE2 LSFT(KC_INSERT)
 #define KC_CUT LCTL(KC_X)
+#define KC_CUT2 LCTL(KC_X)
 #define KC_M_ALL LCTL(KC_A)
