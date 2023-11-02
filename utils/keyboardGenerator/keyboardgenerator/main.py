@@ -1,14 +1,7 @@
 import pykle_serial as serial
-from solid2 import (
-    import_stl,
-    union,
-    scad_render_to_file,
-    polygon,
-    color,
-    cube,
-)
+from solid2 import import_stl, union, scad_render_to_file, polygon, color, cube, text
 
-KEY_PATH = "1_X_Kailh_Socket_Holder.stl"
+KEY_PATH = "KeySocket.stl"
 MX_KEY_SPACING = 19.05  # mm
 MX_KEY_SIZE = 14  # mm
 
@@ -25,13 +18,19 @@ def main():
     # TODO Need to understand how to work with pykle_serial.serial.Keyboard
     for key_pos in keyboard_layout.keys:
         keyboard.append(
-            key.right(key_pos.x * MX_KEY_SPACING).forward(key_pos.y * MX_KEY_SPACING)
+            key.right(key_pos.x * MX_KEY_SPACING).back(key_pos.y * MX_KEY_SPACING)
         )
+        # keyboard.append(
+        # # text(text=f"{key_pos.x}:{key_pos.y}", size=3)
+        # # .right(key_pos.x * MX_KEY_SPACING + 3)
+        # # .back(key_pos.y * MX_KEY_SPACING + 3)
+        # # .up(12)
+        # )
         keyboard.append(
-            color("blue", alpha=0.2)(
-                cube([14, 14, 3], center=True)
-                .right(key_pos.x * MX_KEY_SPACING + MX_KEY_SPACING / 2)
-                .forward(key_pos.y * MX_KEY_SPACING + MX_KEY_SPACING / 2)
+            color("blue", alpha=0.4)(
+                cube([14, 14, 6], center=True)
+                .right(key_pos.x * MX_KEY_SPACING)
+                .back(key_pos.y * MX_KEY_SPACING)
                 .up(9)
             )
         )
@@ -84,7 +83,12 @@ def calc_plat(keyboard_layout):
 
 def get_key_socket():
     key = import_stl(KEY_PATH, convexity=3)
-    key = key.rotateX(90).right(MX_KEY_SPACING / 2).forward(MX_KEY_SPACING / 2)
+    return key
+    # return key.root()
+
+    # key = key.rotateX(90).right(MX_KEY_SPACING / 2).forward(MX_KEY_SPACING / 2)
+
+    key = cube([MX_KEY_SPACING, MX_KEY_SPACING, 2])
 
     return key
 
@@ -95,7 +99,8 @@ def read_keyboard_json(json_path: str) -> dict:
         """[[
         {"a":7},
         "00",
-        "01"
+        "01",
+        "02"
         ],[
         "10",
          "11"
