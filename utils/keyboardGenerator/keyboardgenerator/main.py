@@ -96,40 +96,38 @@ def get_key_socket():
 def read_keyboard_json(json_path: str) -> dict:
     # NOTE To the output of the json we need to add [] around the all information
     keyboard = serial.parse(
-        """[[
-        {"a":7},
-        "00",
-        "01",
-        "02"
-        ],[
-        "10",
-         "11"
-         ]
-         ]"""
-        # """[
-        # {
-        # "a": 1
-        # },
-        # [
-        # {
-        # "a": 5
-        # },
-        # "a",
-        # "b",
-        # "c"
-        # ],
-        # [
-        # "d",
-        # "e",
-        # "f"
-        # ],
-        # [
-        # "1",
-        # "2",
-        # "3"
-        # ]
-        # ]"""
+        """[
+            [{a:7},"00","01","02"],
+["10","11"],
+[{r:30,y:-1.5,x:3.25},"02"]
+]
+            """
     )
+    # keyboard = serial.parse(
+    # # """[
+    # # {
+    # # "a": 1
+    # # },
+    # # [
+    # # {
+    # # "a": 5
+    # # },
+    # # "a",
+    # # "b",
+    # # "c"
+    # # ],
+    # # [
+    # # "d",
+    # # "e",
+    # # "f"
+    # # ],
+    # # [
+    # # "1",
+    # # "2",
+    # # "3"
+    # # ]
+    # # ]"""
+    # )
     return keyboard
 
 
