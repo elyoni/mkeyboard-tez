@@ -2,6 +2,7 @@ import pykle_serial as kle_serial
 from typing_extensions import Self
 import os
 from solid2 import (
+    linear_extrude,
     import_stl,
     union,
     scad_render_to_file,
@@ -30,11 +31,63 @@ class Point:
         self.x = x
         self.y = y
 
+    def __mul__(self, other):
+        # Check if the other object is also a Point
+        if isinstance(other, Point):
+            # Perform element-wise multiplication
+            result_x = self.x * other.x
+            result_y = self.y * other.y
+            return Point(result_x, result_y)
+        elif isinstance(other, int | float):
+            result_x = self.x * other
+            result_y = self.y * other
+            return Point(result_x, result_y)
+        else:
+            # Raise an exception if the other object is not a Point
+            raise ValueError(
+                "Multiplication is only supported between two Point instances"
+            )
+
+    def __add__(self, other):
+        # Check if the other object is also a Point
+        if isinstance(other, Point):
+            # Perform element-wise addition
+            result_x = self.x + other.x
+            result_y = self.y + other.y
+            return Point(result_x, result_y)
+        elif isinstance(other, int | float):
+            result_x = self.x + other
+            result_y = self.y + other
+            return Point(result_x, result_y)
+        else:
+            # Raise an exception if the other object is not a Point
+            raise ValueError("Addition is only supported between two Point instances")
+
+    def __sub__(self, other):
+        # Check if the other object is also a Point
+        if isinstance(other, Point):
+            # Perform element-wise addition
+            result_x = self.x - other.x
+            result_y = self.y - other.y
+            return Point(result_x, result_y)
+        elif isinstance(other, int | float):
+            result_x = self.x - other
+            result_y = self.y - other
+            return Point(result_x, result_y)
+        else:
+            # Raise an exception if the other object is not a Point
+            raise ValueError("Addition is only supported between two Point instances")
+
 
 class Key:
     pos: Point
+    pos_spacing: Point
+    corners: tuple[Point, Point, Point, Point]
+    corners_spacing: tuple[Point, Point, Point, Point]
     rotation_angle: float  # Degrees
     spacing: float
+    height: float
+    width: float
 
     def __init__(self, key: kle_serial.Key) -> None:
         self.spacing = (
@@ -52,16 +105,37 @@ class Key:
             self.pos.x += key.width / 2
             self.pos.y += key.height / 2
 
+        self.height = key.height
+        self.width = key.width
+        self.calcuate_corners()
+
+        self.pos_spacing = self.pos * self.spacing
         self.rotation_angle = key.rotation_angle
+
+    def calcuate_corners(self):
+        self.corners = (
+            Point(self.pos.x - self.width / 2, self.pos.y + self.height / 2),
+            Point(self.pos.x - self.width / 2, self.pos.y - self.height / 2),
+            Point(self.pos.x + self.width / 2, self.pos.y + self.height / 2),
+            Point(self.pos.x + self.width / 2, self.pos.y - self.height / 2),
+        )
+
+        self.corners_spacing = (
+            Point(self.pos.x - self.width / 2, self.pos.y + self.height / 2)
+            * self.spacing,
+            Point(self.pos.x - self.width / 2, self.pos.y - self.height / 2)
+            * self.spacing,
+            Point(self.pos.x + self.width / 2, self.pos.y + self.height / 2)
+            * self.spacing,
+            Point(self.pos.x + self.width / 2, self.pos.y - self.height / 2)
+            * self.spacing,
+        )
 
     def __calc_rotate_xy(
         self, original_point: Point, center_rotation_point: Point, angle_degrees: float
     ) -> Point:
         # Step 1: Translate the shape
-        translate_distance = Point(
-            original_point.x - center_rotation_point.x,
-            original_point.y - center_rotation_point.y,
-        )
+        translate_distance = original_point - center_rotation_point
 
         # Step 2: Perform the rotation
         angle_radians = math.radians(angle_degrees)
@@ -73,10 +147,7 @@ class Key:
         )
 
         # Step 3: Translate the shape back
-        final_point = Point(
-            rotated_point.x + center_rotation_point.x,
-            rotated_point.y + center_rotation_point.y,
-        )
+        final_point = rotated_point + center_rotation_point
 
         return final_point
 
@@ -122,6 +193,41 @@ class Keyboard:
     def __convet_keys(self, keyboard_layout_orig: kle_serial.Keyboard):
         for key_orig in keyboard_layout_orig.keys:
             self.keys_list.append(Key(key_orig))
+
+    def calc_plat(self):
+        from scipy.spatial import ConvexHull
+        import numpy as np
+
+        points_raw = []
+        for key in self.keys_list:
+            # print((key.pos.x, key.pos.y))
+            for corner_spacing in key.corners_spacing:
+                points_raw.append((corner_spacing.x, corner_spacing.y))
+
+        # Convert the points_raw to a NumPy array for compatibility with ConvexHull
+        points_array = np.array(points_raw)
+
+        # Calculate the convex hull
+        hull = ConvexHull(points_array)
+
+        # Extract the vertices of the convex hull
+        hull_points = points_array[hull.vertices]
+
+        # Close the shape by adding the first point at the end
+        hull_points = np.append(hull_points, [hull_points[0]], axis=0)
+
+        # Extract x and y coordinates from the hull points
+        points = []
+        x, y = zip(*hull_points)
+        for _x, _y in zip(x, y):
+            points.append((_x, -_y))
+        plate = polygon(points)
+
+        # center_x = sum(p[0] for p in points) / len(points)
+        # center_y = sum(p[1] for p in points) / len(points)
+
+        # my_centered_polygon = translate([center_x, center_y, 0])(plate)
+        return color("red")(plate.linear_extrude(height=2).down(1))
 
     @classmethod
     def read_json(cls, json_path: os.PathLike) -> Self:
@@ -184,45 +290,11 @@ class Keyboard:
 
 def main():
     # keyboard_layout: kle_serial.Keyboard = read_keyboard_json(JSON_PATH)
-    keyboard = Keyboard.get_json_const_01()
+    keyboard = Keyboard.get_json_const_02()
 
     keyboard_object = keyboard.build_pcb_layer()
+    keyboard_object.add(keyboard.calc_plat())
     scad_render_to_file(keyboard_object)
-
-
-def calc_plat(keyboard_layout):
-    from scipy.spatial import ConvexHull
-    import numpy as np
-
-    points_raw = []
-    for key_pos in keyboard_layout.keys:
-        points_raw.append((key_pos.x, key_pos.y))
-
-    # Convert the points_raw to a NumPy array for compatibility with ConvexHull
-    points_array = np.array(points_raw)
-
-    # Calculate the convex hull
-    hull = ConvexHull(points_array)
-
-    # Extract the vertices of the convex hull
-    hull_points = points_array[hull.vertices]
-
-    # Close the shape by adding the first point at the end
-    hull_points = np.append(hull_points, [hull_points[0]], axis=0)
-
-    # Extract x and y coordinates from the hull points
-
-    points = []
-    x, y = zip(*hull_points)
-    for _x, _y in zip(x, y):
-        points.append((_x * MX_KEY_SIZE * 2, _y * MX_KEY_SIZE * 2))
-    plate = polygon(points)
-
-    # center_x = sum(p[0] for p in points) / len(points)
-    # center_y = sum(p[1] for p in points) / len(points)
-
-    # my_centered_polygon = translate([center_x, center_y, 0])(plate)
-    return color("red")(plate)
 
 
 if __name__ == "__main__":
