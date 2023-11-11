@@ -1,13 +1,18 @@
-import pykle_serial as kle_serial  # serial
+import pykle_serial as kle_serial
+from typing_extensions import Self
+import os
 from solid2 import (
     import_stl,
     union,
     scad_render_to_file,
+    OpenSCADObject,
     polygon,
     color,
     cube,
 )
 import math
+
+from solid2.core.utils import keyword
 
 KEY_PATH = "KeySocket.stl"
 MX_KEY_SPACING = 19.05  # mm
@@ -17,168 +22,172 @@ MX_KEY_SIZE = 14  # mm
 JSON_PATH = ""
 
 
-def rotate_shape(original_point, center_rotation_point, angle_degrees):
-    # Step 1: Translate the shape
-    translate_distance = (
-        original_point[0] - center_rotation_point[0],
-        original_point[1] - center_rotation_point[1],
-    )
+class Point:
+    x: float
+    y: float
 
-    # Step 2: Perform the rotation
-    angle_radians = math.radians(angle_degrees)
-    rotated_point = (
-        translate_distance[0] * math.cos(angle_radians)
-        - translate_distance[1] * math.sin(angle_radians),
-        translate_distance[0] * math.sin(angle_radians)
-        + translate_distance[1] * math.cos(angle_radians),
-    )
+    def __init__(self, x: float, y: float) -> None:
+        self.x = x
+        self.y = y
 
-    # Step 3: Translate the shape back
-    final_point = (
-        rotated_point[0] + center_rotation_point[0],
-        rotated_point[1] + center_rotation_point[1],
-    )
 
-    return final_point
+class Key:
+    pos: Point
+    rotation_angle: float  # Degrees
+    spacing: float
 
-def build_pcb_layer(keyboard_layout):
-    pcb_layer = []
-    for key_pos in keyboard_layout.keys:
-        new_pos = rotate_shape(
-            (key_pos.x, key_pos.y),
-            (key_pos.rotation_x, key_pos.rotation_y),
-            key_pos.rotation_angle,
+    def __init__(self, key: kle_serial.Key) -> None:
+        self.spacing = (
+            MX_KEY_SPACING  # In the future need to collect this data from the Json file
         )
-        keyboard.append(
-            key.rotate(-key_pos.rotation_angle)
-            .right(new_pos[0] * MX_KEY_SPACING)
-            .back(new_pos[1] * MX_KEY_SPACING)
+        self.key_origin = key
+        self.pos = Point(key.x, key.y)
+        if key.rotation_angle != 0:
+            self.pos = self.__calc_rotate_xy(
+                self.pos,
+                Point(key.rotation_x, key.rotation_y),
+                key.rotation_angle,
+            )
+        if key.width > 0 or key.height > 0:
+            self.pos.x += key.width / 2
+            self.pos.y += key.height / 2
+
+        self.rotation_angle = key.rotation_angle
+
+    def __calc_rotate_xy(
+        self, original_point: Point, center_rotation_point: Point, angle_degrees: float
+    ) -> Point:
+        # Step 1: Translate the shape
+        translate_distance = Point(
+            original_point.x - center_rotation_point.x,
+            original_point.y - center_rotation_point.y,
         )
+
+        # Step 2: Perform the rotation
+        angle_radians = math.radians(angle_degrees)
+        rotated_point = Point(
+            translate_distance.x * math.cos(angle_radians)
+            - translate_distance.y * math.sin(angle_radians),
+            translate_distance.x * math.sin(angle_radians)
+            + translate_distance.y * math.cos(angle_radians),
+        )
+
+        # Step 3: Translate the shape back
+        final_point = Point(
+            rotated_point.x + center_rotation_point.x,
+            rotated_point.y + center_rotation_point.y,
+        )
+
+        return final_point
+
+
+class PcbLayer:
+    pcb_layout_layer: list = []
+
+    def build_pcb_layer(self, key_layout, keys_list: list[Key]) -> OpenSCADObject:
+        self.pcb_layout_layer = []
+        for key in keys_list:
+            self.pcb_layout_layer.append(
+                key_layout.rotate(-key.rotation_angle)
+                .right(key.pos.x * MX_KEY_SPACING)
+                .back(key.pos.y * MX_KEY_SPACING)
+            )
+
+        return union()(self.pcb_layout_layer)
+
+
+class Keyboard:
+    pcb_layer: PcbLayer
+    # case_layer: CaseLayer
+    # backplat_layer: BackplatLayer
+    keys_list: list[Key]
+
+    def __init__(self, keyboard_layout_orig: kle_serial.Keyboard) -> None:
+        self.pcb_layer = PcbLayer()
+        self.keys_list = []
+
+        self.key_layout = self.get_key_socket_stl()
+        self.__convet_keys(keyboard_layout_orig)
+
+    def build_pcb_layer(self) -> OpenSCADObject:
+        return self.pcb_layer.build_pcb_layer(self.key_layout, self.keys_list)
+
+    def get_key_socket_stl(self):
+        key = import_stl(KEY_PATH, convexity=3)
+
+        # key = key.translate((MX_KEY_SPACING / 2, -MX_KEY_SPACING / 2))
+
+        return key
+
+    def __convet_keys(self, keyboard_layout_orig: kle_serial.Keyboard):
+        for key_orig in keyboard_layout_orig.keys:
+            self.keys_list.append(Key(key_orig))
+
+    @classmethod
+    def read_json(cls, json_path: os.PathLike) -> Self:
+        if not os.path.isfile(json_path):
+            raise FileNotFoundError()
+
+        with open(json_path) as f:
+            file_content = f.readline()
+
+            keyboard = kle_serial.parse(file_content)
+            return cls(keyboard)
+
+    @classmethod
+    def get_json_const_01(cls) -> Self:
+        keyboard = kle_serial.parse(
+            """[
+[{a:7},"",{x:0.5,a:4},"!\\n1","!\\n1"],
+[{a:7,w:1.5},"",{a:4,h:2},"A"],
+[{a:7,w:1.5},""],
+[{w:1.5},"",{a:4},"Z"],
+[{x:0.25,a:7},"",{x:0.25},"",{a:4},"!\\n1"]
+            ]"""
+        )
+        return cls(keyboard)
+
+    @classmethod
+    def get_json_const_02(cls) -> Self:
+        keyboard = kle_serial.parse(
+            """[
+[{x:3.5},"#\\n3",{x:10.5},"*\\n8"],
+[{y:-0.875,x:2.5},"@\\n2",{x:1},"$\\n4",{x:8.5},"&\\n7",{x:1},"(\\n9"],
+[{y:-0.875,x:5.5},"%\\n5",{a:7},"",{x:4.5},"",{a:4},"^\\n6"],
+[{y:-0.875,a:7,w:1.5},"",{a:4},"!\\n1",{x:14.5},")\\n0",{a:7,w:1.5},""],
+[{y:-0.375,x:3.5,a:4},"E",{x:10.5},"I"],
+[{y:-0.875,x:2.5},"W",{x:1},"R",{x:8.5},"U",{x:1},"O"],
+[{y:-0.875,x:5.5},"T",{a:7,h:1.5},"",{x:4.5,h:1.5},"",{a:4},"Y"],
+[{y:-0.875,a:7,w:1.5},"",{a:4},"Q",{x:14.5},"P",{a:7,w:1.5},""],
+[{y:-0.375,x:3.5,a:4},"D",{x:10.5},"K"],
+[{y:-0.875,x:2.5},"S",{x:1},"F",{x:8.5},"J",{x:1},"L"],
+[{y:-0.875,x:5.5},"G",{x:6.5},"H"],
+[{y:-0.875,a:7,w:1.5},"",{a:4},"A",{x:14.5},":\\n;",{a:7,w:1.5},""],
+[{y:-0.625,x:6.5,h:1.5},"",{x:4.5,h:1.5},""],
+[{y:-0.75,x:3.5,a:4},"C",{x:10.5},"<\\n,"],
+[{y:-0.875,x:2.5},"X",{x:1},"V",{x:8.5},"M",{x:1},">\\n."],
+[{y:-0.875,x:5.5},"B",{x:6.5},"N"],
+[{y:-0.875,a:7,w:1.5},"",{a:4},"Z",{x:14.5},"?\\n/",{a:7,w:1.5},""],
+[{y:-0.375,x:3.5},"",{x:10.5},""],
+[{y:-0.875,x:2.5},"",{x:1},"",{x:8.5},"",{x:1},""],
+[{y:-0.75,x:0.5},"","",{x:14.5},"",""],
+[{r:30,rx:6.5,ry:4.25,y:-1,x:1},"",""],
+[{h:2},"",{h:2},"",""],
+[{x:2},""],
+[{r:-30,rx:13,y:-1,x:-3},"",""],
+[{x:-3},"",{h:2},"",{h:2},""],
+[{x:-3},""]
+            ]"""
+        )
+        return cls(keyboard)
 
 
 def main():
-    keyboard_layout = read_keyboard_json(JSON_PATH)
-    print(type(keyboard_layout))
-    key = get_key_socket_stl()
-    keyboard = []
-    # keyboard.append(calc_plat(keyboard_layout))
+    # keyboard_layout: kle_serial.Keyboard = read_keyboard_json(JSON_PATH)
+    keyboard = Keyboard.get_json_const_01()
 
-    # TODO Need to understand how to work with pykle_serial.serial.Keyboard
-    for key_pos in keyboard_layout.keys:
-        new_pos = rotate_shape(
-            (key_pos.x, key_pos.y),
-            (key_pos.rotation_x, key_pos.rotation_y),
-            key_pos.rotation_angle,
-        )
-
-        keyboard.append(
-            key.rotate(-key_pos.rotation_angle)
-            .right(new_pos[0] * MX_KEY_SPACING)
-            .back(new_pos[1] * MX_KEY_SPACING)
-        )
-        # if key_pos.rotation_angle > 0:
-        # print(key_pos)
-        # # print(f"Will be moved in x:{key_pos.x} y: {key_pos.y}")
-        # new_pos = rotate_shape(
-        # (key_pos.x, key_pos.y),
-        # (key_pos.rotation_x, key_pos.rotation_y),
-        # key_pos.rotation_angle,
-        # )
-        # keyboard.append(
-        # key.rotate(-key_pos.rotation_angle)
-        # .right(new_pos[0] * MX_KEY_SPACING)
-        # .back(new_pos[1] * MX_KEY_SPACING)
-        # )
-
-        # # keyboard.append(
-        # # key.rotateX(
-        # # -key_pos.rotation_angle, (0, key_pos.rotation_x, key_pos.rotation_y)
-        # # )
-        # # .right(key_pos.x * MX_KEY_SPACING)
-        # # .back(key_pos.y * MX_KEY_SPACING)
-        # # )
-        # else:
-        # keyboard.append(
-        # key.translate((key_pos.rotation_x, key_pos.rotation_y))
-        # .rotate(-key_pos.rotation_angle)
-        # .right(key_pos.x * MX_KEY_SPACING)
-        # .back(key_pos.y * MX_KEY_SPACING)
-        # )
-        print(f"Will be moved in key_pos {key_pos.rotation_x}, {key_pos.rotation_y}")
-        # translate(center)
-        # keyboard.append(
-        # key.right(key_pos.rotation_x * MX_KEY_SPACING)
-        # .back(key_pos.rotation_y * MX_KEY_SPACING)
-        # .right(key_pos.x * MX_KEY_SPACING)
-        # .back(key_pos.y * MX_KEY_SPACING)
-        # .rotate(-key_pos.rotation_angle)
-        # # .right(key_pos.x * MX_KEY_SPACING)
-        # # .back(key_pos.y * MX_KEY_SPACING)
-        # # .right(MX_KEY_SPACING / 2)
-        # # .back(MX_KEY_SPACING / 2)
-        # # .right(key_pos.x * MX_KEY_SPACING)
-        # # .back(key_pos.y * MX_KEY_SPACING)
-        # )
-        # keyboard.append(
-        # key.rotate(-key_pos.rotation_angle)
-        # .right(key_pos.x * MX_KEY_SPACING)
-        # .back(key_pos.y * MX_KEY_SPACING)
-        # # .right(MX_KEY_SPACING / 2)
-        # # .back(MX_KEY_SPACING / 2)
-        # # .right(key_pos.rotation_x * MX_KEY_SPACING)
-        # # .back(key_pos.rotation_y * MX_KEY_SPACING)
-        # # .right(key_pos.x * MX_KEY_SPACING)
-        # # .back(key_pos.y * MX_KEY_SPACING)
-        # )
-
-        # else:
-        # keyboard.append(
-        # key
-        # # .right(key_pos.rotation_x * MX_KEY_SPACING)
-        # # .back(key_pos.rotation_y * MX_KEY_SPACING)
-        # .rotate(-key_pos.rotation_angle)
-        # .right(key_pos.x * MX_KEY_SPACING)
-        # .back(key_pos.y * MX_KEY_SPACING)
-        # )
-        # keyboard.append(
-        # # text(text=f"{key_pos.x}:{key_pos.y}", size=3)
-        # # .right(key_pos.x * MX_KEY_SPACING + 3)
-        # # .back(key_pos.y * MX_KEY_SPACING + 3)
-        # # .up(12)
-        # )
-        # keyboard.append(
-        # color("blue", alpha=0.4)(
-        # cube([14, 14, 6], center=True)
-        # .right(MX_KEY_SPACING / 2)
-        # .back(MX_KEY_SPACING / 2)
-        # .rotate(-key_pos.rotation_angle)
-        # .right(key_pos.x * MX_KEY_SPACING)
-        # .back(key_pos.y * MX_KEY_SPACING)
-        # .up(9)
-        # )
-        # )
-        keyboard.append(
-            color("blue", alpha=0.4)(
-                cube([14, 14, 6], center=True)
-                .right(MX_KEY_SPACING / 2)
-                .back(MX_KEY_SPACING / 2)
-                .translate((key_pos.rotation_x, key_pos.rotation_y))
-                .rotate(-key_pos.rotation_angle)
-                .right(key_pos.x * MX_KEY_SPACING)
-                .back(key_pos.y * MX_KEY_SPACING)
-                .up(9)
-            )
-        )
-
-    print(f"x:{key_pos.x} y:{key_pos.y}")
-
-    c = union()(keyboard)
-    scad_render_to_file(c)
-    # total_width = 0
-    # for key in keyboard.keys:
-    # total_width += key.width
-    # print(key)
-    # print(total_width)
+    keyboard_object = keyboard.build_pcb_layer()
+    scad_render_to_file(keyboard_object)
 
 
 def calc_plat(keyboard_layout):
@@ -214,61 +223,6 @@ def calc_plat(keyboard_layout):
 
     # my_centered_polygon = translate([center_x, center_y, 0])(plate)
     return color("red")(plate)
-
-
-def get_key_socket_stl():
-    key = import_stl(KEY_PATH, convexity=3)
-
-    key = key.translate((MX_KEY_SPACING / 2, -MX_KEY_SPACING / 2))
-    # key = key.right(MX_KEY_SPACING / 2).back(MX_KEY_SPACING / 2)
-
-    return key
-    # return key.root()
-
-    # key = key.rotateX(90).right(MX_KEY_SPACING / 2).forward(MX_KEY_SPACING / 2)
-
-    key = cube([MX_KEY_SPACING, MX_KEY_SPACING, 2])
-
-    return key
-
-
-def read_keyboard_json(json_path: str) -> dict:
-    # NOTE To the output of the json we need to add [] around the all information
-    keyboard = kle_serial.parse(
-        """[
-[{y:0.375,a:7,w:1.5},""],
-[{w:1.5},""],
-[{w:1.5},""],
-[{w:1.5},""],
-[{y:0.005,x:0.25},""]
-        ]"""
-    )
-    # keyboard = serial.parse(
-    # # """[
-    # # {
-    # # "a": 1
-    # # },
-    # # [
-    # # {
-    # # "a": 5
-    # # },
-    # # "a",
-    # # "b",
-    # # "c"
-    # # ],
-    # # [
-    # # "d",
-    # # "e",
-    # # "f"
-    # # ],
-    # # [
-    # # "1",
-    # # "2",
-    # # "3"
-    # # ]
-    # # ]"""
-    # )
-    return keyboard
 
 
 if __name__ == "__main__":
