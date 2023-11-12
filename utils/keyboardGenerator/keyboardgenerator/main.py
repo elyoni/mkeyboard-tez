@@ -1,5 +1,6 @@
 import pykle_serial as kle_serial
 from typing_extensions import Self
+import numpy as np
 import os
 from solid2 import (
     linear_extrude,
@@ -30,6 +31,16 @@ class Point:
     def __init__(self, x: float, y: float) -> None:
         self.x = x
         self.y = y
+
+    def get_tuple(self) -> tuple[float, float]:
+        return (self.x, self.y)
+
+    @classmethod
+    def from_np(cls, np: np.ndarray):
+        return cls(np[0], np[1])
+
+    def __str__(self):
+        return f"{self.x}, {self.y}"
 
     def __mul__(self, other):
         # Check if the other object is also a Point
@@ -85,9 +96,23 @@ class Key:
     corners: tuple[Point, Point, Point, Point]
     corners_spacing: tuple[Point, Point, Point, Point]
     rotation_angle: float  # Degrees
+    center_rotation_point: Point
     spacing: float
     height: float
     width: float
+
+    def calc_rotate_xy(
+        self, original_point: Point, center_rotation_point: Point
+    ) -> Point:
+        angle = np.deg2rad(self.rotation_angle)
+        R = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+        np_center = np.atleast_2d(center_rotation_point.get_tuple())
+        np_point = np.atleast_2d(original_point.get_tuple())
+        np_point = np.squeeze((R @ (np_point.T - np_center.T) + np_center.T).T)
+        print(
+            f"original_point: {original_point}, center_rotation_point:{center_rotation_point}, angle_degrees: {self.rotation_angle}, angle: {angle} , new point: {np_point} "
+        )
+        return Point.from_np(np_point)
 
     def __init__(self, key: kle_serial.Key) -> None:
         self.spacing = (
@@ -95,22 +120,25 @@ class Key:
         )
         self.key_origin = key
         self.pos = Point(key.x, key.y)
-        if key.rotation_angle != 0:
-            self.pos = self.__calc_rotate_xy(
-                self.pos,
-                Point(key.rotation_x, key.rotation_y),
-                key.rotation_angle,
-            )
+        self.center_rotation_point = Point(key.rotation_x, key.rotation_y)
+        self.rotation_angle = key.rotation_angle
+
+        # Set to the center of the key
         if key.width > 0 or key.height > 0:
             self.pos.x += key.width / 2
             self.pos.y += key.height / 2
 
         self.height = key.height
         self.width = key.width
+        self.pos_spacing = self.pos * self.spacing
+
         self.calcuate_corners()
 
-        self.pos_spacing = self.pos * self.spacing
-        self.rotation_angle = key.rotation_angle
+        # Calculate the center
+        if key.rotation_angle != 0:
+            # print(self.pos)
+            self.pos = self.calc_rotate_xy(self.pos, self.center_rotation_point)
+            print(self.pos)
 
     def calcuate_corners(self):
         self.corners = (
@@ -121,35 +149,27 @@ class Key:
         )
 
         self.corners_spacing = (
-            Point(self.pos.x - self.width / 2, self.pos.y + self.height / 2)
-            * self.spacing,
-            Point(self.pos.x - self.width / 2, self.pos.y - self.height / 2)
-            * self.spacing,
-            Point(self.pos.x + self.width / 2, self.pos.y + self.height / 2)
-            * self.spacing,
-            Point(self.pos.x + self.width / 2, self.pos.y - self.height / 2)
-            * self.spacing,
+            self.corners[0] * self.spacing,
+            self.corners[1] * self.spacing,
+            self.corners[2] * self.spacing,
+            self.corners[3] * self.spacing,
         )
 
-    def __calc_rotate_xy(
-        self, original_point: Point, center_rotation_point: Point, angle_degrees: float
-    ) -> Point:
-        # Step 1: Translate the shape
-        translate_distance = original_point - center_rotation_point
-
-        # Step 2: Perform the rotation
-        angle_radians = math.radians(angle_degrees)
-        rotated_point = Point(
-            translate_distance.x * math.cos(angle_radians)
-            - translate_distance.y * math.sin(angle_radians),
-            translate_distance.x * math.sin(angle_radians)
-            + translate_distance.y * math.cos(angle_radians),
-        )
-
-        # Step 3: Translate the shape back
-        final_point = rotated_point + center_rotation_point
-
-        return final_point
+        if self.rotation_angle != 0:
+            self.corners_spacing = (
+                self.calc_rotate_xy(
+                    self.corners_spacing[0], self.center_rotation_point * self.spacing
+                ),
+                self.calc_rotate_xy(
+                    self.corners_spacing[1], self.center_rotation_point * self.spacing
+                ),
+                self.calc_rotate_xy(
+                    self.corners_spacing[2], self.center_rotation_point * self.spacing
+                ),
+                self.calc_rotate_xy(
+                    self.corners_spacing[3], self.center_rotation_point * self.spacing
+                ),
+            )
 
 
 class PcbLayer:
@@ -244,17 +264,28 @@ class Keyboard:
     def get_json_const_01(cls) -> Self:
         keyboard = kle_serial.parse(
             """[
-[{a:7},"",{x:0.5,a:4},"!\\n1","!\\n1"],
-[{a:7,w:1.5},"",{a:4,h:2},"A"],
-[{a:7,w:1.5},""],
-[{w:1.5},"",{a:4},"Z"],
-[{x:0.25,a:7},"",{x:0.25},"",{a:4},"!\\n1"]
+[{y:0.13,a:7},"",{x:6.5},""],
+[{w:1.5},"",{x:5.5,w:1.5},""],
+[{x:0.25},"",{x:6},""],
+[{w:1.5},"",{x:5.5,w:1.5},""],
+[{x:0.5},"",{x:5.5},""],
+[{r:30,rx:1.5,ry:4.5,y:-1.25,x:1},""],
+[{r:-30,rx:7,y:-1.25,x:-2},""]
             ]"""
         )
         return cls(keyboard)
 
     @classmethod
     def get_json_const_02(cls) -> Self:
+        keyboard = kle_serial.parse(
+            """[
+[{r:30,rx:1.5,ry:4.5,y:-1.25,x:1},""],
+            ]"""
+        )
+        return cls(keyboard)
+
+    @classmethod
+    def get_json_const_ergodox(cls) -> Self:
         keyboard = kle_serial.parse(
             """[
 [{x:3.5},"#\\n3",{x:10.5},"*\\n8"],
@@ -283,14 +314,13 @@ class Keyboard:
 [{r:-30,rx:13,y:-1,x:-3},"",""],
 [{x:-3},"",{h:2},"",{h:2},""],
 [{x:-3},""]
-            ]"""
+]"""
         )
         return cls(keyboard)
 
 
 def main():
-    # keyboard_layout: kle_serial.Keyboard = read_keyboard_json(JSON_PATH)
-    keyboard = Keyboard.get_json_const_02()
+    keyboard = Keyboard.get_json_const_ergodox()
 
     keyboard_object = keyboard.build_pcb_layer()
     keyboard_object.add(keyboard.calc_plat())
