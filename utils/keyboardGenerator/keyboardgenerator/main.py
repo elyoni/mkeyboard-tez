@@ -138,11 +138,16 @@ class Key:
         self.pos_spacing = self.pos * self.spacing
 
     def draw_key_hold(self) -> OpenSCADObject:
-        return (
-            cube(self.spacing.x, self.spacing.y, 4)
-            .rotate(self.rotation_angle)
-            .translate(self.pos_spacing.x, self.pos_spacing.y)
-        )
+        try:
+            return (
+                cube(self.spacing.x, self.spacing.y, 8)
+                .rotate(self.rotation_angle)
+                .translate(self.pos_spacing.x, -self.pos_spacing.y)
+                .down(1)
+            )
+        except Exception:
+            print(type(self.pos_spacing.x), type(self.pos_spacing.y))
+            raise
 
     def calcuate_corners(self, key_boarder):
         self.corners = (
@@ -269,7 +274,7 @@ class Keyboard:
         plate = polygon(points)
 
         # my_centered_polygon = translate([center_x, center_y, 0])(plate)
-        return color("red")(plate.linear_extrude(height=2).down(1))
+        return color("red")(plate.linear_extrude(height=2))
 
     @classmethod
     def read_json(cls, json_path: os.PathLike) -> Self:
@@ -345,9 +350,11 @@ def main():
     keyboard = Keyboard.get_json_const_ergodox()
     keyboard.bootstrap_convert_keys(0.2)
 
-    # keyboard_object = keyboard.build_pcb_layer()
-    # keyboard_object.add(keyboard.draw_plate() - keyboard.draw_keys_holes())
-    keyboard_object = keyboard.draw_keys_holes()
+    keyboard_object = keyboard.build_pcb_layer()
+    # eyboard_object = keyboard.draw_plate() - keyboard.draw_keys_holes()
+    # keyboard_object.add(keyboard.draw_keys_holes())
+    keyboard_object.add(keyboard.draw_plate() - keyboard.draw_keys_holes())
+    # keyboard_object = keyboard.draw_keys_holes()
     # keyboard_object = keyboard.draw_plate() - keyboard.draw_keys_holes()
     # keyboard_object.add(keyboard.draw_keys_holes())
     scad_render_to_file(keyboard_object)
