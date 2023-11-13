@@ -1,20 +1,19 @@
 import pykle_serial as kle_serial
 from typing_extensions import Self
+from scipy.spatial import ConvexHull
+import numpy as np
 import numpy as np
 import os
 from solid2 import (
-    linear_extrude,
+    cube,
     import_stl,
     union,
     scad_render_to_file,
     OpenSCADObject,
     polygon,
     color,
-    cube,
 )
-import math
 
-from solid2.core.utils import keyword
 
 KEY_PATH = "KeySocket.stl"
 MX_KEY_SPACING = 19.05  # mm
@@ -37,7 +36,7 @@ class Point:
 
     @classmethod
     def from_np(cls, np: np.ndarray):
-        return cls(np[0], np[1])
+        return cls(float(np[0]), float(np[1]))
 
     def __str__(self):
         return f"{self.x}, {self.y}"
@@ -97,9 +96,10 @@ class Key:
     corners_spacing: tuple[Point, Point, Point, Point]
     rotation_angle: float  # Degrees
     center_rotation_point: Point
-    spacing: float
+    spacing: Point
     height: float
     width: float
+    key_boarder: float  # in key units
 
     def calc_rotate_xy(
         self, original_point: Point, center_rotation_point: Point
@@ -109,15 +109,14 @@ class Key:
         np_center = np.atleast_2d(center_rotation_point.get_tuple())
         np_point = np.atleast_2d(original_point.get_tuple())
         np_point = np.squeeze((R @ (np_point.T - np_center.T) + np_center.T).T)
-        print(
-            f"original_point: {original_point}, center_rotation_point:{center_rotation_point}, angle_degrees: {self.rotation_angle}, angle: {angle} , new point: {np_point} "
-        )
         return Point.from_np(np_point)
 
-    def __init__(self, key: kle_serial.Key) -> None:
-        self.spacing = (
-            MX_KEY_SPACING  # In the future need to collect this data from the Json file
+    def __init__(self, key: kle_serial.Key, key_boarder: float = 0) -> None:
+        self.spacing = Point(
+            MX_KEY_SPACING,  # In the future need to collect this data from the Json file
+            MX_KEY_SPACING,
         )
+        self.key_boarder = key_boarder
         self.key_origin = key
         self.pos = Point(key.x, key.y)
         self.center_rotation_point = Point(key.rotation_x, key.rotation_y)
@@ -130,22 +129,39 @@ class Key:
 
         self.height = key.height
         self.width = key.width
-        self.pos_spacing = self.pos * self.spacing
 
-        self.calcuate_corners()
+        self.calcuate_corners(key_boarder)
 
         # Calculate the center
         if key.rotation_angle != 0:
-            # print(self.pos)
             self.pos = self.calc_rotate_xy(self.pos, self.center_rotation_point)
-            print(self.pos)
+        self.pos_spacing = self.pos * self.spacing
 
-    def calcuate_corners(self):
+    def draw_key_hold(self) -> OpenSCADObject:
+        return (
+            cube(self.spacing.x, self.spacing.y, 4)
+            .rotate(self.rotation_angle)
+            .translate(self.pos_spacing.x, self.pos_spacing.y)
+        )
+
+    def calcuate_corners(self, key_boarder):
         self.corners = (
-            Point(self.pos.x - self.width / 2, self.pos.y + self.height / 2),
-            Point(self.pos.x - self.width / 2, self.pos.y - self.height / 2),
-            Point(self.pos.x + self.width / 2, self.pos.y + self.height / 2),
-            Point(self.pos.x + self.width / 2, self.pos.y - self.height / 2),
+            Point(
+                self.pos.x - (self.width / 2 + key_boarder),
+                self.pos.y + (self.height / 2 + key_boarder),
+            ),
+            Point(
+                self.pos.x - (self.width / 2 + key_boarder),
+                self.pos.y - (self.height / 2 + key_boarder),
+            ),
+            Point(
+                self.pos.x + (self.width / 2 + key_boarder),
+                self.pos.y + (self.height / 2 + key_boarder),
+            ),
+            Point(
+                self.pos.x + (self.width / 2 + key_boarder),
+                self.pos.y - (self.height / 2 + key_boarder),
+            ),
         )
 
         self.corners_spacing = (
@@ -194,11 +210,22 @@ class Keyboard:
     keys_list: list[Key]
 
     def __init__(self, keyboard_layout_orig: kle_serial.Keyboard) -> None:
+        self.keyboard_layout_orig = keyboard_layout_orig
         self.pcb_layer = PcbLayer()
         self.keys_list = []
 
         self.key_layout = self.get_key_socket_stl()
-        self.__convet_keys(keyboard_layout_orig)
+
+    def draw_keys_holes(self) -> OpenSCADObject:
+        # keys_holes = OpenSCADObject("key", {})
+        keys_holes = union()  # Initialize an empty union
+        for key in self.keys_list:
+            keys_holes.add(key.draw_key_hold())
+
+        return keys_holes
+
+    def bootstrap_convert_keys(self, key_border: float = 0.0):
+        self.__convet_keys(self.keyboard_layout_orig, key_border)
 
     def build_pcb_layer(self) -> OpenSCADObject:
         return self.pcb_layer.build_pcb_layer(self.key_layout, self.keys_list)
@@ -210,17 +237,15 @@ class Keyboard:
 
         return key
 
-    def __convet_keys(self, keyboard_layout_orig: kle_serial.Keyboard):
+    def __convet_keys(
+        self, keyboard_layout_orig: kle_serial.Keyboard, key_border: float
+    ):
         for key_orig in keyboard_layout_orig.keys:
-            self.keys_list.append(Key(key_orig))
+            self.keys_list.append(Key(key_orig, key_border))
 
-    def calc_plat(self):
-        from scipy.spatial import ConvexHull
-        import numpy as np
-
+    def draw_plate(self):
         points_raw = []
         for key in self.keys_list:
-            # print((key.pos.x, key.pos.y))
             for corner_spacing in key.corners_spacing:
                 points_raw.append((corner_spacing.x, corner_spacing.y))
 
@@ -242,9 +267,6 @@ class Keyboard:
         for _x, _y in zip(x, y):
             points.append((_x, -_y))
         plate = polygon(points)
-
-        # center_x = sum(p[0] for p in points) / len(points)
-        # center_y = sum(p[1] for p in points) / len(points)
 
         # my_centered_polygon = translate([center_x, center_y, 0])(plate)
         return color("red")(plate.linear_extrude(height=2).down(1))
@@ -321,9 +343,13 @@ class Keyboard:
 
 def main():
     keyboard = Keyboard.get_json_const_ergodox()
+    keyboard.bootstrap_convert_keys(0.2)
 
-    keyboard_object = keyboard.build_pcb_layer()
-    keyboard_object.add(keyboard.calc_plat())
+    # keyboard_object = keyboard.build_pcb_layer()
+    # keyboard_object.add(keyboard.draw_plate() - keyboard.draw_keys_holes())
+    keyboard_object = keyboard.draw_keys_holes()
+    # keyboard_object = keyboard.draw_plate() - keyboard.draw_keys_holes()
+    # keyboard_object.add(keyboard.draw_keys_holes())
     scad_render_to_file(keyboard_object)
 
 
