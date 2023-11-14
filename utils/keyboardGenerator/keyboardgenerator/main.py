@@ -2,7 +2,6 @@ import pykle_serial as kle_serial
 from typing_extensions import Self
 from scipy.spatial import ConvexHull
 import numpy as np
-import numpy as np
 import os
 from solid2 import (
     cube,
@@ -21,176 +20,6 @@ MX_KEY_SPACING = 19.05  # mm
 MX_KEY_SIZE = 14  # mm
 
 JSON_PATH = ""
-
-
-class Point:
-    x: float
-    y: float
-
-    def __init__(self, x: float, y: float) -> None:
-        self.x = x
-        self.y = y
-
-    def get_tuple(self) -> tuple[float, float]:
-        return (self.x, self.y)
-
-    @classmethod
-    def from_np(cls, np: np.ndarray):
-        return cls(float(np[0]), float(np[1]))
-
-    def __str__(self):
-        return f"{self.x}, {self.y}"
-
-    def __mul__(self, other):
-        # Check if the other object is also a Point
-        if isinstance(other, Point):
-            # Perform element-wise multiplication
-            result_x = self.x * other.x
-            result_y = self.y * other.y
-            return Point(result_x, result_y)
-        elif isinstance(other, int | float):
-            result_x = self.x * other
-            result_y = self.y * other
-            return Point(result_x, result_y)
-        else:
-            # Raise an exception if the other object is not a Point
-            raise ValueError(
-                "Multiplication is only supported between two Point instances"
-            )
-
-    def __add__(self, other):
-        # Check if the other object is also a Point
-        if isinstance(other, Point):
-            # Perform element-wise addition
-            result_x = self.x + other.x
-            result_y = self.y + other.y
-            return Point(result_x, result_y)
-        elif isinstance(other, int | float):
-            result_x = self.x + other
-            result_y = self.y + other
-            return Point(result_x, result_y)
-        else:
-            # Raise an exception if the other object is not a Point
-            raise ValueError("Addition is only supported between two Point instances")
-
-    def __sub__(self, other):
-        # Check if the other object is also a Point
-        if isinstance(other, Point):
-            # Perform element-wise addition
-            result_x = self.x - other.x
-            result_y = self.y - other.y
-            return Point(result_x, result_y)
-        elif isinstance(other, int | float):
-            result_x = self.x - other
-            result_y = self.y - other
-            return Point(result_x, result_y)
-        else:
-            # Raise an exception if the other object is not a Point
-            raise ValueError("Addition is only supported between two Point instances")
-
-
-class Key:
-    pos: Point
-    pos_spacing: Point
-    corners: tuple[Point, Point, Point, Point]
-    corners_spacing: tuple[Point, Point, Point, Point]
-    rotation_angle: float  # Degrees
-    center_rotation_point: Point
-    spacing: Point
-    height: float
-    width: float
-    key_boarder: float  # in key units
-
-    def calc_rotate_xy(
-        self, original_point: Point, center_rotation_point: Point
-    ) -> Point:
-        angle = np.deg2rad(self.rotation_angle)
-        R = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-        np_center = np.atleast_2d(center_rotation_point.get_tuple())
-        np_point = np.atleast_2d(original_point.get_tuple())
-        np_point = np.squeeze((R @ (np_point.T - np_center.T) + np_center.T).T)
-        return Point.from_np(np_point)
-
-    def __init__(self, key: kle_serial.Key, key_boarder: float = 0) -> None:
-        self.spacing = Point(
-            MX_KEY_SPACING,  # In the future need to collect this data from the Json file
-            MX_KEY_SPACING,
-        )
-        self.key_boarder = key_boarder
-        self.key_origin = key
-        self.pos = Point(key.x, key.y)
-        self.center_rotation_point = Point(key.rotation_x, key.rotation_y)
-        self.rotation_angle = key.rotation_angle
-
-        # Set to the center of the key
-        if key.width > 0 or key.height > 0:
-            self.pos.x += key.width / 2
-            self.pos.y += key.height / 2
-
-        self.height = key.height
-        self.width = key.width
-
-        self.calcuate_corners(key_boarder)
-
-        # Calculate the center
-        if key.rotation_angle != 0:
-            self.pos = self.calc_rotate_xy(self.pos, self.center_rotation_point)
-        self.pos_spacing = self.pos * self.spacing
-
-    def draw_key_hold(self) -> OpenSCADObject:
-        try:
-            return (
-                cube(self.spacing.x, self.spacing.y, 8)
-                .rotate(self.rotation_angle)
-                .translate(self.pos_spacing.x, -self.pos_spacing.y)
-                .down(1)
-            )
-        except Exception:
-            print(type(self.pos_spacing.x), type(self.pos_spacing.y))
-            raise
-
-    def calcuate_corners(self, key_boarder):
-        self.corners = (
-            Point(
-                self.pos.x - (self.width / 2 + key_boarder),
-                self.pos.y + (self.height / 2 + key_boarder),
-            ),
-            Point(
-                self.pos.x - (self.width / 2 + key_boarder),
-                self.pos.y - (self.height / 2 + key_boarder),
-            ),
-            Point(
-                self.pos.x + (self.width / 2 + key_boarder),
-                self.pos.y + (self.height / 2 + key_boarder),
-            ),
-            Point(
-                self.pos.x + (self.width / 2 + key_boarder),
-                self.pos.y - (self.height / 2 + key_boarder),
-            ),
-        )
-
-        self.corners_spacing = (
-            self.corners[0] * self.spacing,
-            self.corners[1] * self.spacing,
-            self.corners[2] * self.spacing,
-            self.corners[3] * self.spacing,
-        )
-
-        if self.rotation_angle != 0:
-            self.corners_spacing = (
-                self.calc_rotate_xy(
-                    self.corners_spacing[0], self.center_rotation_point * self.spacing
-                ),
-                self.calc_rotate_xy(
-                    self.corners_spacing[1], self.center_rotation_point * self.spacing
-                ),
-                self.calc_rotate_xy(
-                    self.corners_spacing[2], self.center_rotation_point * self.spacing
-                ),
-                self.calc_rotate_xy(
-                    self.corners_spacing[3], self.center_rotation_point * self.spacing
-                ),
-            )
 
 
 class PcbLayer:
@@ -236,7 +65,7 @@ class Keyboard:
         return self.pcb_layer.build_pcb_layer(self.key_layout, self.keys_list)
 
     def get_key_socket_stl(self):
-        key = import_stl(KEY_PATH, convexity=3)
+        key = import_stl(KEY_PATH, convexity=3).up(0.55)
 
         # key = key.translate((MX_KEY_SPACING / 2, -MX_KEY_SPACING / 2))
 
@@ -274,15 +103,16 @@ class Keyboard:
         plate = polygon(points)
 
         # my_centered_polygon = translate([center_x, center_y, 0])(plate)
-        return color("red")(plate.linear_extrude(height=2))
+        return color("red")(plate.linear_extrude(height=1.3))
 
     @classmethod
-    def read_json(cls, json_path: os.PathLike) -> Self:
+    def read_json(cls, json_path: str) -> Self:
         if not os.path.isfile(json_path):
             raise FileNotFoundError()
 
         with open(json_path) as f:
-            file_content = f.readline()
+            file_content = f.read()
+            print(file_content)
 
             keyboard = kle_serial.parse(file_content)
             return cls(keyboard)
@@ -307,6 +137,28 @@ class Keyboard:
         keyboard = kle_serial.parse(
             """[
 [{r:30,rx:1.5,ry:4.5,y:-1.25,x:1},""],
+            ]"""
+        )
+        return cls(keyboard)
+
+    @classmethod
+    def get_json_const_03(cls) -> Self:
+        keyboard = kle_serial.parse(
+            """[
+[{x:2},"E"],
+[{y:-0.87,x:1},"W",{x:1},"R"],
+[{y:-0.88,x:4},"T"],
+[{y:-0.87},"Q"],
+[{y:-0.38,x:2},"D"],
+[{y:-0.87,x:1},"S",{x:1},"F"],
+[{y:-0.88,x:4},"G"],
+[{y:-0.87},"A"],
+[{y:-0.38,x:2},"C"],
+[{y:-0.87,x:1},"X",{x:1},"V"],
+[{y:-0.88,x:4},"B"],
+[{y:-0.87},"Z"],
+[{r:30,rx:5,ry:3.25,y:-0.5,a:7},""],
+[{y:0.5,x:-1},"","",""]
             ]"""
         )
         return cls(keyboard)
@@ -347,8 +199,9 @@ class Keyboard:
 
 
 def main():
-    keyboard = Keyboard.get_json_const_ergodox()
+    keyboard = Keyboard.get_json_const_03()
     keyboard.bootstrap_convert_keys(0.2)
+    keyboard_object = union()
 
     keyboard_object = keyboard.build_pcb_layer()
     # eyboard_object = keyboard.draw_plate() - keyboard.draw_keys_holes()
