@@ -18,7 +18,10 @@ class Key(Part):
         size: XY,
         three_d_obj: OpenSCADObject,
     ):
-        self.position = position
+        if rotation_degree != 0:
+            self.position = position.calc_rotate_xy(rotation_center, rotation_degree)
+        else:
+            self.position = position
         self.rotation_degree = rotation_degree
         self.rotation_center = rotation_center
         self.border_pcb = border_pcb
@@ -41,10 +44,11 @@ class Key(Part):
             # Assuming you are working with cherry
             key_size = XY(19.05, 19.05)
 
-        print("KLE point", Point(_key.x, _key.y))
+        rotation_center = Point(_key.rotation_x, _key.rotation_y) * key_size
         position = Point(_key.x, _key.y) * key_size
-        print("position", position)
-        rotation_center = Point(_key.rotation_x, _key.rotation_y)
+        position += (
+            key_size / 2
+        )  # KLE is point to the upper left side of the key, with this I am centering it
 
         return cls(
             position,

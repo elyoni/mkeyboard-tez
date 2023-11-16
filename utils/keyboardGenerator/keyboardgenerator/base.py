@@ -27,11 +27,11 @@ class XY:
         if isinstance(other, XY):
             result_x = self.x / other.x
             result_y = self.y / other.y
-            return XY(result_x, result_y)
+            return type(self)(result_x, result_y)
         elif isinstance(other, int | float):
             result_x = self.x / other
             result_y = self.y / other
-            return XY(result_x, result_y)
+            return type(self)(result_x, result_y)
         else:
             # Raise an exception if the other object is not a XY
             raise ValueError("Dividing is only supported between two XY instances")
@@ -42,11 +42,11 @@ class XY:
             # Perform element-wise multiplication
             result_x = self.x * other.x
             result_y = self.y * other.y
-            return XY(result_x, result_y)
+            return type(self)(result_x, result_y)
         elif isinstance(other, int | float):
             result_x = self.x * other
             result_y = self.y * other
-            return XY(result_x, result_y)
+            return type(self)(result_x, result_y)
         else:
             # Raise an exception if the other object is not a XY
             raise ValueError(
@@ -55,16 +55,16 @@ class XY:
 
     def __add__(self, other):
         # Check if the other object is also a XY
-        # if isinstance(other, XY):
-        # Perform element-wise addition
+        if isinstance(other, XY):
+            # Perform element-wise addition
+            result_x = self.x + other.x
+            result_y = self.y + other.y
+            return type(self)(result_x, result_y)
         if isinstance(other, int | float):
             result_x = self.x + other
             result_y = self.y + other
-            return XY(result_x, result_y)
+            return type(self)(result_x, result_y)
         else:
-            result_x = self.x + other.x
-            result_y = self.y + other.y
-            return XY(result_x, result_y)
             # Raise an exception if the other object is not a Point
             raise ValueError("Addition is only supported between two Point instances")
 
@@ -74,11 +74,11 @@ class XY:
             # Perform element-wise addition
             result_x = self.x - other.x
             result_y = self.y - other.y
-            return XY(result_x, result_y)
+            return type(self)(result_x, result_y)
         elif isinstance(other, int | float):
             result_x = self.x - other
             result_y = self.y - other
-            return XY(result_x, result_y)
+            return type(self)(result_x, result_y)
         else:
             # Raise an exception if the other object is not a Point
             raise ValueError("Addition is only supported between two Point instances")

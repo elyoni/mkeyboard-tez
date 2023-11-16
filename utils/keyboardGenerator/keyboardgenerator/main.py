@@ -5,7 +5,7 @@ from solid2 import OpenSCADObject, cube, union, import_stl
 
 def main():
     KEY_PATH = "keyboardgenerator/KeySocket.stl"
-    keyboard_kle = get_json_const_02()
+    keyboard_kle = get_json_const_ergodox()
     key_stl = import_stl(KEY_PATH, convexity=3).up(0.55)
     keys_list = []
     for key_orig in keyboard_kle.keys:
@@ -53,8 +53,9 @@ def get_json_const_ergodox() -> kle_serial.Keyboard:
 def get_json_const_02():
     keyboard = kle_serial.parse(
         """[
-[{a:7},"Tab"],
-[{r:30,y:-1,x:2},"A"]
+["Num Lock","/"],
+["7\\nHome"],
+[{r:45,rx:1,ry:1,y:-0.5},"8\\n↑"]
 ]"""
     )
     return keyboard
