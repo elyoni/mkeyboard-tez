@@ -2,6 +2,15 @@ import pykle_serial as kle_serial
 from key import Key
 from solid2 import OpenSCADObject, cube, union, import_stl
 
+from scipy.spatial import ConvexHull
+import numpy as np
+from solid2 import (
+    import_stl,
+    union,
+    polygon,
+    color,
+)
+
 
 def main():
     KEY_PATH = "keyboardgenerator/KeySocket.stl"
@@ -11,9 +20,43 @@ def main():
     for key_orig in keyboard_kle.keys:
         keys_list.append(Key.from_kle_serial(key_orig, key_stl))
     pcb_obj = union()
+    pcb_obj_footprint = union()
+    corents_list = []
     for key_obj in keys_list:
         pcb_obj += key_obj.draw_pcb()
-    pcb_obj.save_as_scad("nettt.scad")
+        for cor in key_obj.calculate_corners():
+            corents_list.append(cor.get_tuple())
+        pcb_obj_footprint += key_obj.draw_pcb_footprint()
+    plate = draw_plate(corents_list)
+    plate_pcb = plate - pcb_obj_footprint
+    plate_pcb_final = plate_pcb + pcb_obj
+
+    plate_pcb_final.save_as_scad("nettt.scad")
+
+    # print(corents_list)
+    # pcb_obj.save_as_scad("nettt.scad")
+
+
+def draw_plate(points_raw) -> OpenSCADObject:
+    # Convert the points_raw to a NumPy array for compatibility with ConvexHull
+    points_array = np.array(points_raw)
+    # Calculate the convex hull
+    hull = ConvexHull(points_array)
+    # Extract the vertices of the convex hull
+    hull_points = points_array[hull.vertices]
+
+    # Close the shape by adding the first point at the end
+    hull_points = np.append(hull_points, [hull_points[0]], axis=0)
+
+    # Extract x and y coordinates from the hull points
+    points = []
+    x, y = zip(*hull_points)
+    for _x, _y in zip(x, y):
+        points.append((_x, _y))
+    plate = polygon(points)
+
+    # my_centered_polygon = translate([center_x, center_y, 0])(plate)
+    return color("red")(plate.linear_extrude(height=1.3))
 
 
 def get_json_const_ergodox() -> kle_serial.Keyboard:

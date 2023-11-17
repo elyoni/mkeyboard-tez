@@ -2,7 +2,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-from solid2 import OpenSCADObject, right, back, rotate, translate
+from solid2 import OpenSCADObject, right, back, rotate, translate, cube
 
 
 class XY:
@@ -116,6 +116,13 @@ class Part(ABC):
     def draw_pcb(self) -> OpenSCADObject:
         return self.three_d_obj.rotate(self.rotation_degree).translate(
             self.position.x, self.position.y
+        )
+
+    def draw_pcb_footprint(self) -> OpenSCADObject:
+        return (
+            cube(self.size, center=True)
+            .rotate(self.rotation_degree)
+            .translate(self.position.x, self.position.y)
         )
 
     # @abstractmethod
