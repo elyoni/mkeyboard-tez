@@ -1,6 +1,7 @@
 import pykle_serial as kle_serial
+from pykle_serial.serial import Keyboard
 from key import Key
-from solid2 import OpenSCADObject, cube, union, import_stl
+from solid2.core.object_base import OpenSCADObject
 
 from scipy.spatial import ConvexHull
 import numpy as np
@@ -11,12 +12,19 @@ from solid2 import (
     color,
 )
 
+from keyboardgenerator.base import Part
+
+KEY_PATH = "keyboardgenerator/KeySocket.stl"
+
 
 def main():
-    KEY_PATH = "keyboardgenerator/KeySocket.stl"
-    keyboard_kle = get_json_const_ergodox()
-    key_stl = import_stl(KEY_PATH, convexity=3).up(0.55)
-    keys_list = []
+    keyboard_kle = get_json_const_03()
+    key_stl = import_stl(KEY_PATH, convexity=3).translate(
+        19.05 / 2, 19.05 / 2, 0.55
+    )  # will move into key.py
+    keys_list: list[
+        Part
+    ] = []  # Should be replace by parts, because this list will also contain Arduino
     for key_orig in keyboard_kle.keys:
         keys_list.append(Key.from_kle_serial(key_orig, key_stl))
     pcb_obj = union()
@@ -27,9 +35,12 @@ def main():
         for cor in key_obj.calculate_corners():
             corents_list.append(cor.get_tuple())
         pcb_obj_footprint += key_obj.draw_pcb_footprint()
+    print(corents_list)
     plate = draw_plate(corents_list)
-    plate_pcb = plate - pcb_obj_footprint
-    plate_pcb_final = plate_pcb + pcb_obj
+    # print(plate.hull)
+    # plate_pcb = plate - pcb_obj_footprint
+    # plate_pcb_final = plate_pcb + pcb_obj
+    plate_pcb_final = pcb_obj + plate
 
     plate_pcb_final.save_as_scad("nettt.scad")
 
@@ -47,6 +58,7 @@ def draw_plate(points_raw) -> OpenSCADObject:
 
     # Close the shape by adding the first point at the end
     hull_points = np.append(hull_points, [hull_points[0]], axis=0)
+    # self.position = position.calc_rotate_xy(rotation_center, rotation_degree)
 
     # Extract x and y coordinates from the hull points
     points = []
@@ -99,6 +111,15 @@ def get_json_const_02():
 ["Num Lock","/"],
 ["7\\nHome"],
 [{r:45,rx:1,ry:1,y:-0.5},"8\\n↑"]
+]"""
+    )
+    return keyboard
+
+
+def get_json_const_03() -> Keyboard:
+    keyboard = kle_serial.parse(
+        """[
+        [{r:15,x:1,a:7},""]
 ]"""
     )
     return keyboard

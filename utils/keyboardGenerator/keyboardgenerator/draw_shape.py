@@ -41,7 +41,6 @@ import matplotlib.pyplot as plt
 # plt.fill(x, y, "b", alpha=0.2)  # 'b' stands for blue, you can change it
 
 
-import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull
 import numpy as np
 
