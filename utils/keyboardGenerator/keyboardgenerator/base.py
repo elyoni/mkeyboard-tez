@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-from typing_extensions import Self
 import numpy as np
-import math
+import pykle_serial as kle_serial
+from scipy.spatial import ConvexHull
+
+# import math
+from pathlib import Path
 from abc import ABC
+import json
 
 
 from solid2.core.object_base import OpenSCADObject
-from solid2 import cube
+from solid2 import cube, import_stl, union, polygon
 
 
 class XY:
@@ -69,11 +73,11 @@ class XY:
             result_y = self.y + other
             return type(self)(result_x, result_y)
         else:
-            # Raise an exception if the other object is not a Point
-            raise ValueError("Addition is only supported between two Point instances")
+            # Raise an exception if the other object is not a XY
+            raise ValueError("Addition is only supported between two XY instances")
 
     def __sub__(self, other):
-        # Check if the other object is also a Point
+        # Check if the other object is also a XY
         if isinstance(other, XY):
             # Perform element-wise addition
             result_x = self.x - other.x
@@ -84,162 +88,253 @@ class XY:
             result_y = self.y - other
             return type(self)(result_x, result_y)
         else:
-            # Raise an exception if the other object is not a Point
-            raise ValueError("Addition is only supported between two Point instances")
+            # Raise an exception if the other object is not a XY
+            raise ValueError("Addition is only supported between two XY instances")
 
-
-class Point(XY):
-    def __init__(self, x: float, y: float) -> None:
-        super().__init__(x, y)
-
-    def calc_rotate_xy(
-        self, center_rotation_point: "Point", rotation_degree: float
-    ) -> Self:
-        # theta = math.radians(rotation_degree)
-        # return Point(
-        # .x * math.cos(theta) - corner.y * math.sin(theta),
-        # corner.x * math.sin(theta) + corner.y * math.cos(theta),
-        # )
-
+    def rotate(self, center_point: "XY", rotation_degree: float) -> "XY":
         angle = np.deg2rad(rotation_degree)
         R = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-        np_center = np.atleast_2d((center_rotation_point.x, center_rotation_point.y))
+        np_center = np.atleast_2d((center_point.x, center_point.y))
         np_point = np.atleast_2d((self.x, self.y))
         np_point = np.squeeze((R @ (np_point.T - np_center.T) + np_center.T).T)
         return self.from_np(np_point)
 
 
+# class XY(XY):
+# def __init__(self, x: float, y: float) -> None:
+# super().__init__(x, y)
+
+# def calc_rotate_xy(
+# self, center_rotation_point: "XY", rotation_degree: float
+# ) -> "XY":
+# # theta = math.radians(rotation_degree)
+# # return XY(
+# # .x * math.cos(theta) - corner.y * math.sin(theta),
+# # corner.x * math.sin(theta) + corner.y * math.cos(theta),
+# # )
+
+# angle = np.deg2rad(rotation_degree)
+# R = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+# np_center = np.atleast_2d((center_rotation_point.x, center_rotation_point.y))
+# np_point = np.atleast_2d((self.x, self.y))
+# np_point = np.squeeze((R @ (np_point.T - np_center.T) + np_center.T).T)
+# return self.from_np(np_point)
+
+
 class Corners:
-    top_left: Point
-    top_right: Point
-    bottom_left: Point
-    bottom_right: Point
+    top_left: XY
+    top_right: XY
+    bottom_left: XY
+    bottom_right: XY
 
     def __init__(
         self,
-        top_left: Point,
-        top_right: Point,
-        bottom_left: Point,
-        bottom_right: Point,
+        top_left: XY,
+        size: XY,
     ) -> None:
-        self.top_left = top_left
-        self.top_right = top_right
-        self.bottom_left = bottom_left
-        self.bottom_right = bottom_right
-
-    def calculate_corners(self, top_left: Point, size: XY, rotation_degree: float):
-        # half_size_xy: XY = self.size / 2
-
         self.top_left = top_left + size * XY(0, 0)
         self.top_right = top_left + size * XY(1, 0)
         self.bottom_left = top_left + size * XY(0, 1)
         self.bottom_right = top_left + size * XY(1, 1)
 
-        center_tmp = top_left + size / 3
-        rotation_center = Point(center_tmp.x, center_tmp.y)
+    def rotate(self, center_rotation_point: XY, angle_rotate: float) -> "Corners":
+        if angle_rotate != 0:
+            self.top_left = self.top_left.rotate(center_rotation_point, angle_rotate)
+            self.top_right = self.top_right.rotate(center_rotation_point, angle_rotate)
+            self.bottom_left = self.bottom_left.rotate(
+                center_rotation_point, angle_rotate
+            )
+            self.bottom_right = self.bottom_right.rotate(
+                center_rotation_point, angle_rotate
+            )
+        return self
 
-        if rotation_degree != 0:
-            self.top_left = top_left.calc_rotate_xy(rotation_center, rotation_degree)
-            # self.top_left   =   self.top_left.calc_rotate_xy(rotation_center, rotation_degree),
-            # self.top_right   =  self.top_right    corners[1].calc_rotate_xy(self.rotation_center, self.rotation_degree),
-            # self.bottom_left =  self.bottom_left  corners[2].calc_rotate_xy(self.rotation_center, self.rotation_degree),
-            # self.bottom_right = self.bottom_right corners[3].calc_rotate_xy(self.rotation_center, self.rotation_degree),
-        print("after rotate")
-        # for cor in corners:
-        # print(cor)
-        # return corners
+    def __add__(self, other: int) -> "Corners":
+        self.top_left += other
+        self.top_right += other
+        self.bottom_left += other
+        self.bottom_right += other
+        return self
+
+    def get_coruners(self) -> tuple[XY, XY, XY, XY]:
+        return (self.top_left, self.top_right, self.bottom_left, self.bottom_right)
 
 
 # General Keyboard part, can be a key, mcu, etc.
 class Part(ABC):
-    # footprint_pcb: tuple[
-    # float, float, float
-    # ]  # Footprint Size the part on the pcb in mm
-    # footprint_case: tuple[
-    # float, float, float
-    # ]  # Footprint Size the part on the pcb in mm
-
-    size: XY
-    position: Point  # Center Point of the part in mm NOT u.
-    rotation_degree: float  # Equle 0 If no need to rotate the part
-    rotation_center: Point
+    # position: XY  # Center XY of the part in mm NOT u.
     corners: Corners
-    border_pcb: XY  # Add additional border to the part
-    three_d_obj: OpenSCADObject
+    center_point: XY  # Center XY of the part in mm NOT u.
+    center_rotation: XY
+    angle_rotation: float  # Equle 0 If no need to rotate the part
+    openscad_obj: OpenSCADObject
+    footprint_pcb: XY
+    size: XY
+
+    # border_pcb: XY  # Add additional border to the part
 
     def __init__(
         self,
-        position: Point,
-        rotation_degree: float,
-        rotation_center: Point,
-        border_pcb: XY,
-        size_scale: XY,
+        upper_left_corner: XY,
+        angle_rotation: float,
+        center_rotation: XY,
         size: XY,
-        three_d_obj: OpenSCADObject,
+        openscad_obj: OpenSCADObject,
+        footprint_pcb: XY,
     ):
-        if rotation_degree != 0:
-            self.position = position.calc_rotate_xy(rotation_center, rotation_degree)
-        else:
-            self.position = position
-        self.rotation_degree = rotation_degree
-        self.rotation_center = rotation_center
-        self.border_pcb = border_pcb
-        self.size_scale = size_scale
+        self.center_point = upper_left_corner + size / 2
+        self.center_rotation = center_rotation
+        self.angle_rotation = angle_rotation
+        self.corners = Corners(upper_left_corner, size).rotate(
+            center_rotation, angle_rotation
+        )
+        self.openscad_obj = openscad_obj
+        self.footprint_pcb = footprint_pcb
         self.size = size
-        self.three_d_obj = three_d_obj
+
+    # Add border add constant length to every size of the part and rotate it if needed
+    # The center of rotation is the center of the part, not the original rotation point
+    def add_border(self, border: int) -> None:
+        self.corners += border
+        self.corners.rotate(self.center_point, self.angle_rotation)
+
+    # Return the footprint of the part on the PCB layer as a openscad object
+    # The function is place the footprint cube in the correct position and rotation it
+    def draw_footprint_pcb(self) -> OpenSCADObject:
+        return (
+            cube([self.footprint_pcb.x, self.footprint_pcb.y, 5], center=True)
+            .rotate(self.angle_rotation)
+            .translate(self.center_point.x, self.center_point.y, 0)
+        )
 
     def draw_pcb(self) -> OpenSCADObject:
-        new_place = self.position + self.size / 3
-        pos = new_place.calc_rotate_xy(self.rotation_center, self.rotation_degree)
-
-        output = self.three_d_obj.rotate(self.rotation_degree).translate(
-            pos.x, pos.y, 0
+        return self.openscad_obj.rotate(self.angle_rotation).translate(
+            self.center_point.x, self.center_point.y, 0
         )
-        # print("draw_pcb:", dir(output.hull))
-        return output
 
-    def draw_pcb_footprint(self) -> OpenSCADObject:
-        new_place = self.position + self.size / 3
+
+class Key(Part):
+    def draw_footprint_plate(self) -> OpenSCADObject:
         return (
-            cube(self.size, center=True)
-            .rotate(self.rotation_degree + 20)
-            .translate(new_place.x, new_place.y, 0)
+            cube([self.size.x, self.size.y, 5], center=True)
+            .translate([self.center_point.x, self.center_point.y, 0])
+            .rotate(self.angle_rotation)
         )
 
-    # @abstractmethod
-    # def draw_plate(self) -> OpenSCADObject:
-    # # First need to calculate the rotation, if has and then draw
-    # pass
-    # In the future
-    # import numpy as np
 
-    # def R(angle):
-    #     cos_a = np.cos(angle)
-    #     sin_a = np.sin(angle)
-    #     return np.array([[cos_a, -sin_a],
-    #                      [sin_a,  cos_a]])
+class Arudino(Part):
+    def draw_footprint_plate(self) -> OpenSCADObject:
+        return (
+            cube([self.size.x, self.size.y, 5], center=True)
+            .translate([self.center_point.x, self.center_point.y, 0])
+            .rotate(self.angle_rotation)
+        )
 
-    # def rotate(poly, angle, Center):
-    #     poly_new = (poly - Center).dot(R(angle).T) + Center
-    #     return poly_new
 
-    def rotateShape(self, corners: tuple[Point, Point, Point, Point], theta):
-        """Rotates the given polygon which consists of corners represented as (x,y),
-        around the ORIGIN, clock-wise, theta degrees"""
-        theta = math.radians(theta)
-        print("theta", theta)
-        rotatedShape = []
-        print("fff", corners[1].x * math.cos(theta) - corners[1].y * math.sin(theta))
-        for corner in corners:
-            rotatedShape.append(
-                Point(
-                    corner.x * math.cos(theta) - corner.y * math.sin(theta),
-                    corner.x * math.sin(theta) + corner.y * math.cos(theta),
-                )
-            )
-        return rotatedShape
+def from_kle(key_kle: kle_serial.Key):
+    part_type = key_kle.sm.lower()
+    if part_type == "kailh":
+        key_size_scale = XY(18.60, 17.60)
+        openscad_obj = import_stl("keyboardgenerator/KeySocket.stl")
+    elif part_type == "cherry":
+        key_size_scale = XY(19.05, 19.05)
+        openscad_obj = import_stl("cherry_mx.stl")
+    elif part_type == "arduino":
+        key_size_scale = XY(30, 30)
+        openscad_obj = import_stl("arduino.stl")
+    else:
+        # Assuming you are working with cherry
+        key_size_scale = XY(19.05, 19.05)
+        openscad_obj = import_stl("cherry_mx.stl")
 
-    # @abstractmethod
-    # def from_unit_to_mm(self, float) -> float:
-    # # Convert KLE units into real number
-    # pass
+    openscad_obj = import_stl("keyboardgenerator/KeySocket.stl")
+    footprint_pcb = key_size_scale
+    position = XY(key_kle.x, key_kle.y) * key_size_scale
+    center_rotation = XY(key_kle.rotation_x, key_kle.rotation_y) * key_size_scale
+    size = XY(key_kle.width, key_kle.height) * key_size_scale
+
+    if part_type == "kailh" or part_type == "cherry":
+        return Key(
+            position,
+            key_kle.rotation_angle,
+            center_rotation,
+            size,
+            openscad_obj,
+            footprint_pcb,
+        )
+    elif part_type == "arduino":
+        return Arudino(
+            position,
+            key_kle.rotation_angle,
+            center_rotation,
+            size,
+            openscad_obj,
+            footprint_pcb,
+        )
+    else:
+        return Key(
+            position,
+            key_kle.rotation_angle,
+            center_rotation,
+            size,
+            openscad_obj,
+            footprint_pcb,
+        )
+
+
+class Keyboard:
+    parts_list: list[Part | Key | Arudino]
+
+    def __init__(self, part_list: list[Part | Key | Arudino]) -> None:
+        self.parts_list = part_list
+
+    @classmethod
+    def from_kle_file(cls, kle_json_file: Path) -> "Keyboard":
+        part_list = []
+        with open(kle_json_file) as json_file:
+            data = json.load(json_file)
+            for part in data["keys"]:
+                part_list.append(from_kle(part))
+        return cls(part_list)
+
+    @classmethod
+    def from_kle_obj(cls, kle_obj: kle_serial.Keyboard) -> "Keyboard":
+        part_list = []
+        for part in kle_obj.keys:
+            part_list.append(from_kle(part))
+        return cls(part_list)
+
+    def draw_pcb(self) -> OpenSCADObject:
+        corners = []
+        pcb_obj = union()
+        pcb_footprint = union()
+        for part in self.parts_list:
+            print(type(part))
+            pcb_obj += part.draw_pcb()
+            pcb_footprint += part.draw_footprint_pcb()
+            corners += part.corners.get_coruners()
+        return draw_plate(corners) - pcb_footprint + pcb_obj
+
+
+def draw_plate(points_raw) -> OpenSCADObject:
+    points_list = []
+
+    for point in points_raw:
+        points_list.append(point.get_tuple())
+    # Convert the points_raw to a NumPy array for compatibility with ConvexHull
+    points_array = np.array(points_list)
+    # Calculate the convex hull
+    hull = ConvexHull(points_array)
+    # Extract the vertices of the convex hull
+    hull_points = points_array[hull.vertices]
+
+    # Close the shape by adding the first point at the end
+    hull_points = np.append(hull_points, [hull_points[0]], axis=0)
+    # self.position = position.calc_rotate_xy(rotation_center, rotation_degree)
+
+    # Extract x and y coordinates from the hull points
+    points = []
+    x, y = zip(*hull_points)
+    for _x, _y in zip(x, y):
+        points.append((_x, _y))
+    return polygon(points)

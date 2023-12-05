@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 import pykle_serial as kle_serial
 
-from keyboardgenerator.base import Point, Part, XY
+from keyboardgenerator.base import XY, Part
 from solid2.core.object_base import OpenSCADObject
 
 
 class Key(Part):
-    key_spacing: float = 0
-    pass
+    # key_spacing: float = 0
+    # pass
 
     @classmethod
     def from_kle_serial(
@@ -25,10 +25,14 @@ class Key(Part):
             # Assuming you are working with cherry
             key_size_scale = XY(19.05, 19.05)
         # key_size_scale = XY(1, 1)
+
+        # Key size in mm, Covert from KLE units to mm
         key_size = XY(key_kle.width, key_kle.height) * key_size_scale
-        rotation_center = Point(key_kle.rotation_x, key_kle.rotation_y) * key_size_scale
+        rotation_center = XY(key_kle.rotation_x, key_kle.rotation_y) * key_size_scale
         print("rotation_center:", rotation_center)
-        position = Point(key_kle.x, key_kle.y) * key_size_scale
+        upper_left_cournet = XY(key_kle.x, key_kle.y) * key_size_scale
+
+        position = XY(key_kle.x, key_kle.y) * key_size_scale
 
         # print("key.position1:", position)
         # position += (
