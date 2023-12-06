@@ -5,12 +5,12 @@ from scipy.spatial import ConvexHull
 
 # import math
 from pathlib import Path
-from abc import ABC
+from abc import ABC, abstractmethod
 import json
 
 
 from solid2.core.object_base import OpenSCADObject
-from solid2 import cube, import_stl, union, polygon
+from solid2 import cube, import_stl, union, polygon, debug
 
 
 class XY:
@@ -150,11 +150,19 @@ class Corners:
         return self
 
     def __add__(self, other: int) -> "Corners":
-        self.top_left += other
-        self.top_right += other
-        self.bottom_left += other
-        self.bottom_right += other
+        self.top_left += XY(other, -other)
+        self.top_right += XY(other, other)
+        self.bottom_left += XY(-other, -other)
+        self.bottom_right += XY(-other, other)
+        # self.top_left += XY(other, other)
+        # self.top_right += XY(other, other)
+        # self.bottom_left += XY(other, other)
+        # self.bottom_right += XY(other, other)
         return self
+
+    def __str__(self) -> str:
+        # return f"top_left: {self.top_left}, top_right: {self.top_right}, bottom_left: {self.bottom_left}, bottom_right: {self.bottom_right}"
+        return f"{self.top_left}, {self.top_right}, {self.bottom_left}, {self.bottom_right}"
 
     def get_coruners(self) -> tuple[XY, XY, XY, XY]:
         return (self.top_left, self.top_right, self.bottom_left, self.bottom_right)
@@ -182,7 +190,9 @@ class Part(ABC):
         openscad_obj: OpenSCADObject,
         footprint_pcb: XY,
     ):
-        self.center_point = upper_left_corner + size / 2
+        self.center_point = (upper_left_corner + size / 2).rotate(
+            center_rotation, angle_rotation
+        )
         self.center_rotation = center_rotation
         self.angle_rotation = angle_rotation
         self.corners = Corners(upper_left_corner, size).rotate(
@@ -194,9 +204,18 @@ class Part(ABC):
 
     # Add border add constant length to every size of the part and rotate it if needed
     # The center of rotation is the center of the part, not the original rotation point
-    def add_border(self, border: int) -> None:
-        self.corners += border
+    def add_border(self, border: int) -> "Part":
+        # print("Before addin border", self.corners)
+        # print()
         self.corners.rotate(self.center_point, self.angle_rotation)
+        self.corners += border
+        # print("After addin border", self.corners)
+        # print(self.center_point)
+        # print()
+        # self.corners.rotate(self.center_point, self.angle_rotation)
+        # print("Before addin rotate", self.corners)
+        # print()
+        return self
 
     # Return the footprint of the part on the PCB layer as a openscad object
     # The function is place the footprint cube in the correct position and rotation it
@@ -212,13 +231,17 @@ class Part(ABC):
             self.center_point.x, self.center_point.y, 0
         )
 
+    @abstractmethod
+    def draw_footprint_plate(self) -> OpenSCADObject:
+        pass
+
 
 class Key(Part):
     def draw_footprint_plate(self) -> OpenSCADObject:
         return (
             cube([self.size.x, self.size.y, 5], center=True)
-            .translate([self.center_point.x, self.center_point.y, 0])
             .rotate(self.angle_rotation)
+            .translate([self.center_point.x, self.center_point.y, 0])
         )
 
 
@@ -301,40 +324,70 @@ class Keyboard:
     def from_kle_obj(cls, kle_obj: kle_serial.Keyboard) -> "Keyboard":
         part_list = []
         for part in kle_obj.keys:
+            print("part.profile", part.labels)
             part_list.append(from_kle(part))
         return cls(part_list)
 
-    def draw_pcb(self) -> OpenSCADObject:
+    def _collect_corners(self, border=0) -> list[XY]:
         corners = []
+        # print("Start _collect_corners")
+        for part in self.parts_list:
+            print("---------------------222222")
+            corner = part.add_border(border).corners
+            # corner = part.corners.get_coruners()
+            corners += corner.get_coruners()
+        # print("End _collect_corners")
+        return corners
+
+    def _draw_base_plate(self, border=0) -> OpenSCADObject:
+        corners = self._collect_corners(border)
+
+        points_list = []
+        for corner in corners:
+            points_list.append(corner.get_tuple())
+        # Convert the points_raw to a NumPy array for compatibility with ConvexHull
+        points_array = np.array(points_list)
+        # Calculate the convex hull
+        hull = ConvexHull(points_array)
+        # Extract the vertices of the convex hull
+        hull_points = points_array[hull.vertices]
+
+        # Close the shape by adding the first point at the end
+        hull_points = np.append(hull_points, [hull_points[0]], axis=0)
+        # self.position = position.calc_rotate_xy(rotation_center, rotation_degree)
+
+        # Extract x and y coordinates from the hull points
+        points = []
+        x, y = zip(*hull_points)
+        for _x, _y in zip(x, y):
+            points.append((_x, _y))
+        print("points", points)
+        return polygon(points)
+
+    def draw_pcb_10(self) -> OpenSCADObject:
         pcb_obj = union()
         pcb_footprint = union()
         for part in self.parts_list:
-            print(type(part))
+            print("--------------11111")
             pcb_obj += part.draw_pcb()
+
             pcb_footprint += part.draw_footprint_pcb()
-            corners += part.corners.get_coruners()
-        return draw_plate(corners) - pcb_footprint + pcb_obj
 
+        return self._draw_base_plate(5)  # - pcb_footprint + pcb_obj
 
-def draw_plate(points_raw) -> OpenSCADObject:
-    points_list = []
+    def draw_pcb(self) -> OpenSCADObject:
+        pcb_obj = union()
+        pcb_footprint = union()
+        for part in self.parts_list:
+            print("--------------11111")
+            pcb_obj += part.draw_pcb()
 
-    for point in points_raw:
-        points_list.append(point.get_tuple())
-    # Convert the points_raw to a NumPy array for compatibility with ConvexHull
-    points_array = np.array(points_list)
-    # Calculate the convex hull
-    hull = ConvexHull(points_array)
-    # Extract the vertices of the convex hull
-    hull_points = points_array[hull.vertices]
+            pcb_footprint += part.draw_footprint_pcb()
 
-    # Close the shape by adding the first point at the end
-    hull_points = np.append(hull_points, [hull_points[0]], axis=0)
-    # self.position = position.calc_rotate_xy(rotation_center, rotation_degree)
+        return debug(self._draw_base_plate())  # - pcb_footprint + pcb_obj
 
-    # Extract x and y coordinates from the hull points
-    points = []
-    x, y = zip(*hull_points)
-    for _x, _y in zip(x, y):
-        points.append((_x, _y))
-    return polygon(points)
+    def draw_plate(self) -> OpenSCADObject:
+        plate_obj = union()
+        for part in self.parts_list:
+            plate_obj += part.draw_footprint_plate()
+        return self._draw_base_plate(20) - plate_obj

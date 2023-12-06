@@ -20,8 +20,11 @@ KEY_PATH = "keyboardgenerator/KeySocket.stl"
 
 
 def main():
-    keyboard = Keyboard.from_kle_obj(get_json_const_ergodox())
-    keyboard.draw_pcb().save_as_scad("nettt.scad")
+    keyboard = Keyboard.from_kle_obj(get_json_const_03())
+    keyboard10 = Keyboard.from_kle_obj(get_json_const_03())
+    # keyboard = Keyboard.from_kle_obj(get_json_const_ergodox())
+    (keyboard.draw_pcb() + keyboard10.draw_pcb_10()).save_as_scad("pcb.scad")
+    # keyboard.draw_plate().save_as_scad("plate.scad")
     # keyboard_kle = get_json_const_03()
     # key_stl = import_stl(KEY_PATH, convexity=3).translate(
     # 19.05 / 2, 19.05 / 2, 0.55
@@ -109,7 +112,7 @@ def get_json_const_ergodox() -> kle_serial.Keyboard:
     return keyboard
 
 
-def get_json_const_02():
+def get_json_const_02() -> kle_serial.Keyboard:
     keyboard = kle_serial.parse(
         """[
 ["Num Lock","/"],
@@ -120,12 +123,13 @@ def get_json_const_02():
     return keyboard
 
 
-def get_json_const_03() -> Keyboard:
+def get_json_const_03() -> kle_serial.Keyboard:
     keyboard = kle_serial.parse(
         """[
-        [{r:15,x:1,a:7},""]
-]"""
+    [{r:45,rx:1,ry:1,y:-0.5},"8\\n↑"]
+    ]"""
     )
+
     return keyboard
 
 
