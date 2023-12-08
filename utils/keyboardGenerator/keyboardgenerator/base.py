@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 
-from typing import Union
 import numpy as np
 import pykle_serial as kle_serial
 from scipy.spatial import ConvexHull
 
 # import math
-from pathlib import Path
-from abc import ABC, abstractmethod
-import json
 
 
 from solid2.core.object_base import OpenSCADObject
-from solid2 import cube, import_stl, union, polygon, debug, sphere, text
+from solid2 import cube, import_stl, union, polygon, sphere, text
 
 
 class XY:
@@ -237,72 +233,6 @@ class Arduino(Part):
     spacing = XY(30, 30)  # Size
     hole_size = XY(0, 0)  # Size
     stl_path = "keyboardgenerator/KeySocket.stl"
-
-
-def from_kle(key_kle: kle_serial.Key, keyboard_spacing_type: str):
-    part_type = key_kle.sm.lower()
-    part_profile = None if key_kle.labels[10] is None else key_kle.labels[10].lower()
-
-    if part_type == "kailh":
-        key_size_scale = XY(18.60, 17.60)
-        openscad_obj = import_stl("keyboardgenerator/KeySocket.stl")
-    elif part_type == "cherry":
-        key_size_scale = XY(19.05, 19.05)
-        openscad_obj = import_stl("cherry_mx.stl")
-    else:
-        # Maybe not a key check if it is an arduino or any other type of part
-        if part_profile == "arduino":
-            key_size_scale = XY(30, 50)  # TODO: need to create stl and change the size
-            openscad_obj = import_stl("arduino.stl")
-        else:
-            # Assuming you are working with cherry
-            key_size_scale = XY(19.05, 19.05)
-            openscad_obj = import_stl("cherry_mx.stl")
-
-    # elif part_type == "arduino":
-
-    openscad_obj = import_stl("keyboardgenerator/KeySocket.stl")
-    footprint_pcb = key_size_scale
-    # position = XY(key_kle.x, key_kle.y) * key_size_scale
-    # center_rotation = XY(key_kle.rotation_x, key_kle.rotation_y) * key_size_scale
-    # size = XY(key_kle.width, key_kle.height) * key_size_scale
-    label = key_kle.labels[0]
-
-    position = XY(key_kle.x, key_kle.y) * keyboard_spacing
-    center_rotation = XY(key_kle.rotation_x, key_kle.rotation_y) * keyboard_spacing
-    size = XY(key_kle.width, key_kle.height) * keyboard_spacing
-    if part_type == "kailh" or part_type == "cherry":
-        return Key(
-            position,
-            key_kle.rotation_angle,
-            center_rotation,
-            size,
-            openscad_obj,
-            footprint_pcb,
-            label,
-        )
-    elif part_profile == "arduino":
-        print("arduino")
-        return Arduino(
-            position,
-            key_kle.rotation_angle,
-            center_rotation,
-            size,
-            openscad_obj,
-            footprint_pcb,
-            label,
-        )
-
-    else:
-        return Key(
-            position,
-            key_kle.rotation_angle,
-            center_rotation,
-            size,
-            openscad_obj,
-            footprint_pcb,
-            label,
-        )
 
 
 def get_part_obj(part_type: str, part_profile: str | None = None):
