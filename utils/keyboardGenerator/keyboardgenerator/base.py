@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import numpy as np
 import pykle_serial as kle_serial
 from scipy.spatial import ConvexHull
@@ -10,7 +11,7 @@ import json
 
 
 from solid2.core.object_base import OpenSCADObject
-from solid2 import cube, import_stl, union, polygon, debug
+from solid2 import cube, import_stl, union, polygon, debug, sphere, text
 
 
 class XY:
@@ -92,33 +93,14 @@ class XY:
             raise ValueError("Addition is only supported between two XY instances")
 
     def rotate(self, center_point: "XY", rotation_degree: float) -> "XY":
+        if rotation_degree == 0:
+            return self
         angle = np.deg2rad(rotation_degree)
         R = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
         np_center = np.atleast_2d((center_point.x, center_point.y))
         np_point = np.atleast_2d((self.x, self.y))
         np_point = np.squeeze((R @ (np_point.T - np_center.T) + np_center.T).T)
         return self.from_np(np_point)
-
-
-# class XY(XY):
-# def __init__(self, x: float, y: float) -> None:
-# super().__init__(x, y)
-
-# def calc_rotate_xy(
-# self, center_rotation_point: "XY", rotation_degree: float
-# ) -> "XY":
-# # theta = math.radians(rotation_degree)
-# # return XY(
-# # .x * math.cos(theta) - corner.y * math.sin(theta),
-# # corner.x * math.sin(theta) + corner.y * math.cos(theta),
-# # )
-
-# angle = np.deg2rad(rotation_degree)
-# R = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-# np_center = np.atleast_2d((center_rotation_point.x, center_rotation_point.y))
-# np_point = np.atleast_2d((self.x, self.y))
-# np_point = np.squeeze((R @ (np_point.T - np_center.T) + np_center.T).T)
-# return self.from_np(np_point)
 
 
 class Corners:
@@ -132,10 +114,10 @@ class Corners:
         top_left: XY,
         size: XY,
     ) -> None:
-        self.top_left = top_left + size * XY(0, 0)
-        self.top_right = top_left + size * XY(1, 0)
-        self.bottom_left = top_left + size * XY(0, 1)
-        self.bottom_right = top_left + size * XY(1, 1)
+        self.top_left = top_left + size * XY(0, 1)
+        self.top_right = top_left + size * XY(1, 1)
+        self.bottom_left = top_left + size * XY(0, 0)
+        self.bottom_right = top_left + size * XY(1, 0)
 
     def rotate(self, center_rotation_point: XY, angle_rotate: float) -> "Corners":
         if angle_rotate != 0:
@@ -150,14 +132,10 @@ class Corners:
         return self
 
     def __add__(self, other: int) -> "Corners":
-        self.top_left += XY(other, -other)
+        self.top_left += XY(-other, other)
         self.top_right += XY(other, other)
         self.bottom_left += XY(-other, -other)
-        self.bottom_right += XY(-other, other)
-        # self.top_left += XY(other, other)
-        # self.top_right += XY(other, other)
-        # self.bottom_left += XY(other, other)
-        # self.bottom_right += XY(other, other)
+        self.bottom_right += XY(other, -other)
         return self
 
     def __str__(self) -> str:
@@ -170,7 +148,6 @@ class Corners:
 
 # General Keyboard part, can be a key, mcu, etc.
 class Part(ABC):
-    # position: XY  # Center XY of the part in mm NOT u.
     corners: Corners
     center_point: XY  # Center XY of the part in mm NOT u.
     center_rotation: XY
@@ -178,6 +155,7 @@ class Part(ABC):
     openscad_obj: OpenSCADObject
     footprint_pcb: XY
     size: XY
+    text: str
 
     # border_pcb: XY  # Add additional border to the part
 
@@ -189,7 +167,9 @@ class Part(ABC):
         size: XY,
         openscad_obj: OpenSCADObject,
         footprint_pcb: XY,
+        text: str,
     ):
+        self.text = text
         self.center_point = (upper_left_corner + size / 2).rotate(
             center_rotation, angle_rotation
         )
@@ -205,16 +185,11 @@ class Part(ABC):
     # Add border add constant length to every size of the part and rotate it if needed
     # The center of rotation is the center of the part, not the original rotation point
     def add_border(self, border: int) -> "Part":
-        # print("Before addin border", self.corners)
-        # print()
-        self.corners.rotate(self.center_point, self.angle_rotation)
+        if self.angle_rotation != 0:
+            self.corners.rotate(self.center_point, -self.angle_rotation)
         self.corners += border
-        # print("After addin border", self.corners)
-        # print(self.center_point)
-        # print()
-        # self.corners.rotate(self.center_point, self.angle_rotation)
-        # print("Before addin rotate", self.corners)
-        # print()
+        if self.angle_rotation != 0:
+            self.corners.rotate(self.center_point, self.angle_rotation)
         return self
 
     # Return the footprint of the part on the PCB layer as a openscad object
@@ -275,6 +250,7 @@ def from_kle(key_kle: kle_serial.Key):
     position = XY(key_kle.x, key_kle.y) * key_size_scale
     center_rotation = XY(key_kle.rotation_x, key_kle.rotation_y) * key_size_scale
     size = XY(key_kle.width, key_kle.height) * key_size_scale
+    label = key_kle.labels[0]
 
     if part_type == "kailh" or part_type == "cherry":
         return Key(
@@ -284,6 +260,7 @@ def from_kle(key_kle: kle_serial.Key):
             size,
             openscad_obj,
             footprint_pcb,
+            label,
         )
     elif part_type == "arduino":
         return Arudino(
@@ -293,6 +270,7 @@ def from_kle(key_kle: kle_serial.Key):
             size,
             openscad_obj,
             footprint_pcb,
+            label,
         )
     else:
         return Key(
@@ -302,6 +280,7 @@ def from_kle(key_kle: kle_serial.Key):
             size,
             openscad_obj,
             footprint_pcb,
+            label,
         )
 
 
@@ -324,27 +303,29 @@ class Keyboard:
     def from_kle_obj(cls, kle_obj: kle_serial.Keyboard) -> "Keyboard":
         part_list = []
         for part in kle_obj.keys:
-            print("part.profile", part.labels)
             part_list.append(from_kle(part))
         return cls(part_list)
 
-    def _collect_corners(self, border=0) -> list[XY]:
-        corners = []
-        # print("Start _collect_corners")
-        for part in self.parts_list:
-            print("---------------------222222")
-            corner = part.add_border(border).corners
-            # corner = part.corners.get_coruners()
-            corners += corner.get_coruners()
-        # print("End _collect_corners")
-        return corners
+    # Define a function to create a sphere at a given point
+    def create_point_sphere(self, point):
+        return sphere(d=1).color("blue").translate(point.x, point.y, -2)
 
     def _draw_base_plate(self, border=0) -> OpenSCADObject:
-        corners = self._collect_corners(border)
+        polygonObj = union()
 
         points_list = []
-        for corner in corners:
-            points_list.append(corner.get_tuple())
+        for part in self.parts_list:
+            corner = part.add_border(border).corners
+            for corner in corner.get_coruners():
+                polygonObj += self.create_point_sphere(corner)
+                polygonObj += (
+                    text(part.text, size=6)
+                    .rotate(180)
+                    .translate(part.center_point.x + 5, part.center_point.y + 3, 3)
+                    .color("black")
+                )
+                points_list.append(corner.get_tuple())
+
         # Convert the points_raw to a NumPy array for compatibility with ConvexHull
         points_array = np.array(points_list)
         # Calculate the convex hull
@@ -354,37 +335,23 @@ class Keyboard:
 
         # Close the shape by adding the first point at the end
         hull_points = np.append(hull_points, [hull_points[0]], axis=0)
-        # self.position = position.calc_rotate_xy(rotation_center, rotation_degree)
-
         # Extract x and y coordinates from the hull points
         points = []
         x, y = zip(*hull_points)
         for _x, _y in zip(x, y):
             points.append((_x, _y))
-        print("points", points)
-        return polygon(points)
 
-    def draw_pcb_10(self) -> OpenSCADObject:
-        pcb_obj = union()
-        pcb_footprint = union()
-        for part in self.parts_list:
-            print("--------------11111")
-            pcb_obj += part.draw_pcb()
-
-            pcb_footprint += part.draw_footprint_pcb()
-
-        return self._draw_base_plate(5)  # - pcb_footprint + pcb_obj
+        return polygonObj + polygon(points)
 
     def draw_pcb(self) -> OpenSCADObject:
         pcb_obj = union()
         pcb_footprint = union()
         for part in self.parts_list:
-            print("--------------11111")
             pcb_obj += part.draw_pcb()
 
             pcb_footprint += part.draw_footprint_pcb()
 
-        return debug(self._draw_base_plate())  # - pcb_footprint + pcb_obj
+        return self._draw_base_plate() - pcb_footprint + pcb_obj
 
     def draw_plate(self) -> OpenSCADObject:
         plate_obj = union()
