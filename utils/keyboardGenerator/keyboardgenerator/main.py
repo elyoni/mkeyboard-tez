@@ -107,7 +107,7 @@ def get_json_const_ergodox_arduino() -> kle_serial.Keyboard:
 def get_json_const_ergodox_arduino02() -> kle_serial.Keyboard:
     keyboard = kle_serial.parse(
         """[
-{ name: "tez", switchType:"CherryMx"},
+{ name: "tez", switchType:"CherryMx", plateBorder: 6},
 [{x:3.5},"#\\n3",{x:10.5},"*\\n8"],
 [{y:-0.875,x:2.5},"@\\n2",{x:1},"$\\n4",{x:8.5},"&\\n7",{x:1},"(\\n9"],
 [{y:-0.875,x:5.5},"%\\n5","LS0",{x:0.25,a:7,w:1.5,h:2.75},"\\n\\n\\n\\nArduino",{x:2.75,a:4},"RS0","^\\n6"],

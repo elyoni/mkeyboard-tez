@@ -149,6 +149,7 @@ class Part:
     center_point: XY  # Center XY of the part in mm NOT u.
     center_rotation: XY
     angle_rotation: float  # Equle 0 If no need to rotate the part
+    openscad_file_path: str
     openscad_obj: OpenSCADObject
     footprint_pcb: XY
     size: XY
@@ -161,7 +162,6 @@ class Part:
         angle_rotation: float,
         center_rotation: XY,
         size: XY,
-        openscad_obj: OpenSCADObject,
         footprint_pcb: XY,
         text: str,
     ):
@@ -174,7 +174,7 @@ class Part:
         self.corners = Corners(upper_left_corner, size).rotate(
             center_rotation, angle_rotation
         )
-        self.openscad_obj = openscad_obj
+        self.openscad_obj = import_stl(self.openscad_file_path)
         self.footprint_pcb = footprint_pcb
         self.size = size
 
@@ -208,10 +208,12 @@ class Part:
 
 class Key(Part):
     spacing: XY
+    hole_size: XY
+    openscad_file_path: str
 
     def draw_footprint_plate(self) -> OpenSCADObject:
         return (
-            cube([self.size.x, self.size.y, 5], center=True)
+            cube([self.hole_size.x, self.hole_size.y, 5], center=True)
             .rotate(self.angle_rotation)
             .translate([self.center_point.x, self.center_point.y, 0])
         )
@@ -220,19 +222,19 @@ class Key(Part):
 class CherryMxKey(Key):
     spacing = XY(19.05, 19.05)  # Size
     hole_size = XY(14, 14)  # Size
-    stl_path = "keyboardgenerator/KeySocket.stl"
+    openscad_file_path = "keyboardgenerator/KeySocket.stl"
 
 
 class KailhChocKey(Key):
     spacing = XY(19.05, 19.05)  # Size
     hole_size = XY(14, 14)  # Size
-    stl_path = "keyboardgenerator/KeySocket.stl"
+    openscad_file_path = "keyboardgenerator/KeySocket.stl"
 
 
 class Arduino(Part):
     spacing = XY(30, 30)  # Size
     hole_size = XY(0, 0)  # Size
-    stl_path = "keyboardgenerator/KeySocket.stl"
+    openscad_file_path = "keyboardgenerator/KeySocket.stl"
 
 
 def get_part_obj(part_type: str, part_profile: str | None = None):
@@ -269,7 +271,7 @@ class Keyboard:
     # return cls(part_list)
 
     @classmethod
-    def get_spacing(cls, switch_type: str) -> XY:
+    def get_keyboard_spacing(cls, switch_type: str) -> XY:
         switch_type = switch_type.lower()
         if switch_type == "cherrymx" or switch_type == "":
             return CherryMxKey.spacing
@@ -282,35 +284,9 @@ class Keyboard:
             )
 
     @classmethod
-    def get_part_sizing(
-        cls, part_type: str, part_profile: str = ""
-    ) -> tuple[XY, OpenSCADObject]:
-        if part_type == "kailh":
-            part_size_scale = KailhChocKey.spacing
-            openscad_file_path = KailhChocKey.stl_path
-        elif part_type == "cherry":
-            part_size_scale = CherryMxKey.spacing
-            openscad_file_path = CherryMxKey.stl_path
-        else:
-            # Maybe not a key check if it is an arduino or any other type of part
-            if part_profile == "arduino":
-                print("arduino")
-                part_size_scale = Arduino.spacing
-                openscad_file_path = Arduino.stl_path
-            else:
-                # Assuming you are working with cherry
-                part_size_scale = CherryMxKey.spacing
-                openscad_file_path = CherryMxKey.stl_path
-
-        openscad_obj = import_stl(openscad_file_path)
-        return part_size_scale, openscad_obj
-        # openscad_obj = import_stl("keyboardgenerator/KeySocket.stl")
-
-    @classmethod
     def from_kle_obj(cls, kle_obj: kle_serial.Keyboard) -> "Keyboard":
         # Determine the keyboard spacing
-        key_size_scale: XY = cls.get_spacing(kle_obj.meta.switchType)
-        part_scale, openscad_obj = cls.get_part_sizing(kle_obj.meta.switchType)
+        key_size_scale: XY = cls.get_keyboard_spacing(kle_obj.meta.switchType)
 
         part_list = []
         for part in kle_obj.keys:
@@ -331,7 +307,6 @@ class Keyboard:
                     part.rotation_angle,
                     center_rotation,
                     size,
-                    openscad_obj,
                     footprint_pcb,
                     label,
                 )
@@ -352,7 +327,7 @@ class Keyboard:
             for corner in corner.get_coruners():
                 polygonObj += self.create_point_sphere(corner)
                 polygonObj += (
-                    text(part.text, size=6)
+                    text(part.text, size=4)
                     .rotate(180)
                     .translate(part.center_point.x + 5, part.center_point.y + 3, 3)
                     .color("black")
