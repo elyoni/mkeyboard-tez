@@ -257,9 +257,14 @@ def get_part_obj(part_type: str, part_profile: str | None = None):
 class Keyboard:
     parts_list: list[Part | Key | Arduino]
     profile_label_index: int = 10
+    plate_border: int
+    part_label_index: int = 1
 
-    def __init__(self, part_list: list[Part | Key | Arduino]) -> None:
+    def __init__(
+        self, part_list: list[Part | Key | Arduino], plate_border: int
+    ) -> None:
         self.parts_list = part_list
+        self.plate_border = plate_border
 
     # @classmethod
     # def from_kle_file(cls, kle_json_file: Path) -> "Keyboard":
@@ -287,19 +292,22 @@ class Keyboard:
     def from_kle_obj(cls, kle_obj: kle_serial.Keyboard) -> "Keyboard":
         # Determine the keyboard spacing
         key_size_scale: XY = cls.get_keyboard_spacing(kle_obj.meta.switchType)
+        plate_border = int(kle_obj.meta.notes)
 
         part_list = []
         for part in kle_obj.keys:
             part_obj = get_part_obj(
                 part.sm,
-                None if part.labels[10] is None else part.labels[10].lower(),
+                None
+                if part.labels[cls.profile_label_index] is None
+                else part.labels[cls.profile_label_index].lower(),
             )
             part_scale = part_obj.spacing
 
             position = XY(part.x, part.y) * part_scale
             center_rotation = XY(part.rotation_x, part.rotation_y) * part_scale
             size = XY(part.width, part.height) * part_scale
-            label = part.labels[0]
+            label = part.labels[cls.part_label_index]
             footprint_pcb = key_size_scale
             part_list.append(
                 part_obj(
@@ -312,9 +320,9 @@ class Keyboard:
                 )
             )
 
-        return cls(part_list)
+        return cls(part_list, plate_border)
 
-    # Define a function to create a sphere at a given point
+    # Define a function to create a sphere at a plate_borderiven point
     def create_point_sphere(self, point):
         return sphere(d=1).color("blue").translate(point.x, point.y, -2)
 
@@ -365,4 +373,4 @@ class Keyboard:
         plate_obj = union()
         for part in self.parts_list:
             plate_obj += part.draw_footprint_plate()
-        return self._draw_base_plate(20) - plate_obj
+        return self._draw_base_plate(self.plate_border) - plate_obj
