@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from abc import abstractmethod
 import numpy as np
 import pykle_serial as kle_serial
 from scipy.spatial import ConvexHull
@@ -8,7 +9,7 @@ from scipy.spatial import ConvexHull
 
 
 from solid2.core.object_base import OpenSCADObject
-from solid2 import cube, import_stl, union, polygon, sphere, text
+from solid2 import cube, import_stl, union, polygon, sphere, text, cylinder
 
 
 class XY:
@@ -91,6 +92,7 @@ class XY:
 
     def rotate(self, center_point: "XY", rotation_degree: float) -> "XY":
         if rotation_degree == 0:
+            "easy case"
             return self
         angle = np.deg2rad(rotation_degree)
         R = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
@@ -166,17 +168,24 @@ class Part:
         text: str,
     ):
         self.text = text
+        print("upper_left_corner", upper_left_corner, text)
         self.center_point = (upper_left_corner + size / 2).rotate(
             center_rotation, angle_rotation
         )
+        print("after upper_left_corner", self.center_point, text)
         self.center_rotation = center_rotation
         self.angle_rotation = angle_rotation
         self.corners = Corners(upper_left_corner, size).rotate(
             center_rotation, angle_rotation
         )
-        self.openscad_obj = import_stl(self.openscad_file_path)
+        # self.openscad_obj = import_stl(self.openscad_file_path)
         self.footprint_pcb = footprint_pcb
         self.size = size
+
+    def get_openscad_obj(self) -> OpenSCADObject:
+        raise NotImplementedError(
+            "This function must be implemented, for the part ", type(self)
+        )
 
     # Add border add constant length to every size of the part and rotate it if needed
     # The center of rotation is the center of the part, not the original rotation point
@@ -198,12 +207,30 @@ class Part:
         )
 
     def draw_pcb(self) -> OpenSCADObject:
-        return self.openscad_obj.rotate(self.angle_rotation).translate(
-            self.center_point.x, self.center_point.y, 0
+        return (
+            self.get_openscad_obj()
+            .rotate(self.angle_rotation)
+            .translate(self.center_point.x, self.center_point.y, 0)
         )
 
     def draw_footprint_plate(self) -> OpenSCADObject:
         return union()
+
+
+class Pin(Part):
+    spacing: XY = XY(2.54, 2.54)  # Size
+    hole_size: XY = XY(1.5, 1.5)  # Size
+    # openscad_file_path: str = import_stl("keyboardgenerator/KeySocket.stl")
+
+    def draw_footprint_plate(self) -> OpenSCADObject:
+        return (
+            cube([self.hole_size.x, self.hole_size.y, 5], center=True)
+            .rotate(self.angle_rotation)
+            .translate([self.center_point.x, self.center_point.y, 0])
+        )
+
+    def get_openscad_obj(self) -> OpenSCADObject:
+        return cylinder(d=3, h=20, _fn=30, center=True)
 
 
 class Key(Part):
@@ -217,6 +244,9 @@ class Key(Part):
             .rotate(self.angle_rotation)
             .translate([self.center_point.x, self.center_point.y, 0])
         )
+
+    def get_openscad_obj(self) -> OpenSCADObject:
+        return import_stl(self.openscad_file_path).rotateY(180)
 
 
 class CherryMxKey(Key):
@@ -236,11 +266,17 @@ class Arduino(Part):
     hole_size = XY(0, 0)  # Size
     openscad_file_path = "keyboardgenerator/KeySocket.stl"
 
+    def get_openscad_obj(self) -> OpenSCADObject:
+        return import_stl(self.openscad_file_path)
+
 
 def get_part_obj(part_type: str, part_profile: str | None = None):
     if part_profile == "arduino":
         # print("Part type is arduino")
         return Arduino
+    elif part_profile == "pin":
+        # print("Part type is arduino")
+        return Pin
     elif part_type == "kailh":
         # print("Part type is kailh")
         return KailhChocKey
@@ -258,7 +294,7 @@ class Keyboard:
     parts_list: list[Part | Key | Arduino]
     profile_label_index: int = 10
     plate_border: int
-    part_label_index: int = 1
+    part_label_index: int = 0
 
     def __init__(
         self, part_list: list[Part | Key | Arduino], plate_border: int
@@ -292,7 +328,10 @@ class Keyboard:
     def from_kle_obj(cls, kle_obj: kle_serial.Keyboard) -> "Keyboard":
         # Determine the keyboard spacing
         key_size_scale: XY = cls.get_keyboard_spacing(kle_obj.meta.switchType)
-        plate_border = int(kle_obj.meta.notes)
+        if kle_obj.meta.notes == "":
+            plate_border = 0
+        else:
+            plate_border = int(kle_obj.meta.notes)
 
         part_list = []
         for part in kle_obj.keys:
@@ -302,11 +341,11 @@ class Keyboard:
                 if part.labels[cls.profile_label_index] is None
                 else part.labels[cls.profile_label_index].lower(),
             )
-            part_scale = part_obj.spacing
+            # part_scale = part_obj.spacing
 
-            position = XY(part.x, part.y) * part_scale
-            center_rotation = XY(part.rotation_x, part.rotation_y) * part_scale
-            size = XY(part.width, part.height) * part_scale
+            position = XY(part.x, part.y) * key_size_scale
+            center_rotation = XY(part.rotation_x, part.rotation_y) * key_size_scale
+            size = XY(part.width, part.height) * key_size_scale
             label = part.labels[cls.part_label_index]
             footprint_pcb = key_size_scale
             part_list.append(
@@ -326,20 +365,21 @@ class Keyboard:
     def create_point_sphere(self, point):
         return sphere(d=1).color("blue").translate(point.x, point.y, -2)
 
-    def _draw_base_plate(self, border=0) -> OpenSCADObject:
+    def _draw_base_plate(self, border=0, add_label=True) -> OpenSCADObject:
         polygonObj = union()
 
         points_list = []
         for part in self.parts_list:
             corner = part.add_border(border).corners
             for corner in corner.get_coruners():
-                polygonObj += self.create_point_sphere(corner)
-                polygonObj += (
-                    text(part.text, size=4)
-                    .rotate(180)
-                    .translate(part.center_point.x + 5, part.center_point.y + 3, 3)
-                    .color("black")
-                )
+                # polygonObj += self.create_point_sphere(corner)
+                if add_label:
+                    polygonObj += (
+                        text(part.text, size=4)
+                        .rotate(180)
+                        .translate(part.center_point.x + 5, part.center_point.y + 3, 3)
+                        .color("black")
+                    )
                 points_list.append(corner.get_tuple())
 
         # Convert the points_raw to a NumPy array for compatibility with ConvexHull
@@ -364,10 +404,12 @@ class Keyboard:
         pcb_footprint = union()
         for part in self.parts_list:
             pcb_obj += part.draw_pcb()
-
             pcb_footprint += part.draw_footprint_pcb()
 
-        return self._draw_base_plate() - pcb_footprint + pcb_obj
+        return self._draw_base_plate(add_label=False) - pcb_footprint + pcb_obj
+
+    def draw_bottom(self) -> OpenSCADObject:
+        return self._draw_base_plate(add_label=False)
 
     def draw_plate(self) -> OpenSCADObject:
         plate_obj = union()
