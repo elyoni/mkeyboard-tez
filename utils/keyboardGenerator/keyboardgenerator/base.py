@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from typing import Union
 import numpy as np
 import pykle_serial as kle_serial
 from scipy.spatial import ConvexHull
@@ -147,7 +148,7 @@ class Corners:
 
 
 # General Keyboard part, can be a key, mcu, etc.
-class Part(ABC):
+class Part:
     corners: Corners
     center_point: XY  # Center XY of the part in mm NOT u.
     center_rotation: XY
@@ -158,7 +159,6 @@ class Part(ABC):
     text: str
 
     # border_pcb: XY  # Add additional border to the part
-
     def __init__(
         self,
         upper_left_corner: XY,
@@ -206,12 +206,13 @@ class Part(ABC):
             self.center_point.x, self.center_point.y, 0
         )
 
-    @abstractmethod
     def draw_footprint_plate(self) -> OpenSCADObject:
-        pass
+        return union()
 
 
 class Key(Part):
+    spacing: XY
+
     def draw_footprint_plate(self) -> OpenSCADObject:
         return (
             cube([self.size.x, self.size.y, 5], center=True)
@@ -220,38 +221,56 @@ class Key(Part):
         )
 
 
-class Arudino(Part):
-    def draw_footprint_plate(self) -> OpenSCADObject:
-        return (
-            cube([self.size.x, self.size.y, 5], center=True)
-            .translate([self.center_point.x, self.center_point.y, 0])
-            .rotate(self.angle_rotation)
-        )
+class CherryMxKey(Key):
+    spacing = XY(19.05, 19.05)  # Size
+    hole_size = XY(14, 14)  # Size
+    stl_path = "keyboardgenerator/KeySocket.stl"
 
 
-def from_kle(key_kle: kle_serial.Key):
+class KailhChocKey(Key):
+    spacing = XY(19.05, 19.05)  # Size
+    hole_size = XY(14, 14)  # Size
+    stl_path = "keyboardgenerator/KeySocket.stl"
+
+
+class Arduino(Part):
+    spacing = XY(30, 30)  # Size
+    hole_size = XY(0, 0)  # Size
+    stl_path = "keyboardgenerator/KeySocket.stl"
+
+
+def from_kle(key_kle: kle_serial.Key, keyboard_spacing_type: str):
     part_type = key_kle.sm.lower()
+    part_profile = None if key_kle.labels[10] is None else key_kle.labels[10].lower()
+
     if part_type == "kailh":
         key_size_scale = XY(18.60, 17.60)
         openscad_obj = import_stl("keyboardgenerator/KeySocket.stl")
     elif part_type == "cherry":
         key_size_scale = XY(19.05, 19.05)
         openscad_obj = import_stl("cherry_mx.stl")
-    elif part_type == "arduino":
-        key_size_scale = XY(30, 30)
-        openscad_obj = import_stl("arduino.stl")
     else:
-        # Assuming you are working with cherry
-        key_size_scale = XY(19.05, 19.05)
-        openscad_obj = import_stl("cherry_mx.stl")
+        # Maybe not a key check if it is an arduino or any other type of part
+        if part_profile == "arduino":
+            key_size_scale = XY(30, 50)  # TODO: need to create stl and change the size
+            openscad_obj = import_stl("arduino.stl")
+        else:
+            # Assuming you are working with cherry
+            key_size_scale = XY(19.05, 19.05)
+            openscad_obj = import_stl("cherry_mx.stl")
+
+    # elif part_type == "arduino":
 
     openscad_obj = import_stl("keyboardgenerator/KeySocket.stl")
     footprint_pcb = key_size_scale
-    position = XY(key_kle.x, key_kle.y) * key_size_scale
-    center_rotation = XY(key_kle.rotation_x, key_kle.rotation_y) * key_size_scale
-    size = XY(key_kle.width, key_kle.height) * key_size_scale
+    # position = XY(key_kle.x, key_kle.y) * key_size_scale
+    # center_rotation = XY(key_kle.rotation_x, key_kle.rotation_y) * key_size_scale
+    # size = XY(key_kle.width, key_kle.height) * key_size_scale
     label = key_kle.labels[0]
 
+    position = XY(key_kle.x, key_kle.y) * keyboard_spacing
+    center_rotation = XY(key_kle.rotation_x, key_kle.rotation_y) * keyboard_spacing
+    size = XY(key_kle.width, key_kle.height) * keyboard_spacing
     if part_type == "kailh" or part_type == "cherry":
         return Key(
             position,
@@ -262,8 +281,9 @@ def from_kle(key_kle: kle_serial.Key):
             footprint_pcb,
             label,
         )
-    elif part_type == "arduino":
-        return Arudino(
+    elif part_profile == "arduino":
+        print("arduino")
+        return Arduino(
             position,
             key_kle.rotation_angle,
             center_rotation,
@@ -272,6 +292,7 @@ def from_kle(key_kle: kle_serial.Key):
             footprint_pcb,
             label,
         )
+
     else:
         return Key(
             position,
@@ -284,26 +305,108 @@ def from_kle(key_kle: kle_serial.Key):
         )
 
 
-class Keyboard:
-    parts_list: list[Part | Key | Arudino]
+def get_part_obj(part_type: str, part_profile: str | None = None):
+    if part_profile == "arduino":
+        # print("Part type is arduino")
+        return Arduino
+    elif part_type == "kailh":
+        # print("Part type is kailh")
+        return KailhChocKey
+    elif part_type == "cherry" or part_type == "":
+        # print("Part type is cherry")
+        return CherryMxKey
+    else:
+        raise ValueError(
+            "Don't know what type of spacing you are using, add the information in the json file"
+            "Look at the readme file for more information"
+        )
 
-    def __init__(self, part_list: list[Part | Key | Arudino]) -> None:
+
+class Keyboard:
+    parts_list: list[Part | Key | Arduino]
+    profile_label_index: int = 10
+
+    def __init__(self, part_list: list[Part | Key | Arduino]) -> None:
         self.parts_list = part_list
 
+    # @classmethod
+    # def from_kle_file(cls, kle_json_file: Path) -> "Keyboard":
+    # part_list = []
+    # with open(kle_json_file) as json_file:
+    # data = json.load(json_file)
+    # for part in data["keys"]:
+    # part_list.append(from_kle(part))
+    # return cls(part_list)
+
     @classmethod
-    def from_kle_file(cls, kle_json_file: Path) -> "Keyboard":
-        part_list = []
-        with open(kle_json_file) as json_file:
-            data = json.load(json_file)
-            for part in data["keys"]:
-                part_list.append(from_kle(part))
-        return cls(part_list)
+    def get_spacing(cls, switch_type: str) -> XY:
+        switch_type = switch_type.lower()
+        if switch_type == "cherrymx" or switch_type == "":
+            return CherryMxKey.spacing
+        elif switch_type == "kailhchockey":
+            return KailhChocKey.spacing
+        else:
+            raise ValueError(
+                "Don't know what type of spacing you are using, add the information in the json file"
+                "Look at the readme file for more information    " + switch_type
+            )
+
+    @classmethod
+    def get_part_sizing(
+        cls, part_type: str, part_profile: str = ""
+    ) -> tuple[XY, OpenSCADObject]:
+        if part_type == "kailh":
+            part_size_scale = KailhChocKey.spacing
+            openscad_file_path = KailhChocKey.stl_path
+        elif part_type == "cherry":
+            part_size_scale = CherryMxKey.spacing
+            openscad_file_path = CherryMxKey.stl_path
+        else:
+            # Maybe not a key check if it is an arduino or any other type of part
+            if part_profile == "arduino":
+                print("arduino")
+                part_size_scale = Arduino.spacing
+                openscad_file_path = Arduino.stl_path
+            else:
+                # Assuming you are working with cherry
+                part_size_scale = CherryMxKey.spacing
+                openscad_file_path = CherryMxKey.stl_path
+
+        openscad_obj = import_stl(openscad_file_path)
+        return part_size_scale, openscad_obj
+        # openscad_obj = import_stl("keyboardgenerator/KeySocket.stl")
 
     @classmethod
     def from_kle_obj(cls, kle_obj: kle_serial.Keyboard) -> "Keyboard":
+        # Determine the keyboard spacing
+        key_size_scale: XY = cls.get_spacing(kle_obj.meta.switchType)
+        part_scale, openscad_obj = cls.get_part_sizing(kle_obj.meta.switchType)
+
         part_list = []
         for part in kle_obj.keys:
-            part_list.append(from_kle(part))
+            part_obj = get_part_obj(
+                part.sm,
+                None if part.labels[10] is None else part.labels[10].lower(),
+            )
+            part_scale = part_obj.spacing
+
+            position = XY(part.x, part.y) * part_scale
+            center_rotation = XY(part.rotation_x, part.rotation_y) * part_scale
+            size = XY(part.width, part.height) * part_scale
+            label = part.labels[0]
+            footprint_pcb = key_size_scale
+            part_list.append(
+                part_obj(
+                    position,
+                    part.rotation_angle,
+                    center_rotation,
+                    size,
+                    openscad_obj,
+                    footprint_pcb,
+                    label,
+                )
+            )
+
         return cls(part_list)
 
     # Define a function to create a sphere at a given point
