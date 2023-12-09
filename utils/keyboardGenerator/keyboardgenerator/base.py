@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env p - plate_objython3
 
 from abc import abstractmethod
 import numpy as np
@@ -9,7 +9,7 @@ from scipy.spatial import ConvexHull
 
 
 from solid2.core.object_base import OpenSCADObject
-from solid2 import cube, import_stl, union, polygon, sphere, text, cylinder
+from solid2 import cube, import_stl, union, polygon, sphere, text, cylinder, debug
 
 
 class XY:
@@ -216,21 +216,50 @@ class Part:
     def draw_footprint_plate(self) -> OpenSCADObject:
         return union()
 
+    def draw_footprint_plate_add(self) -> OpenSCADObject:
+        return union()
+
 
 class Pin(Part):
     spacing: XY = XY(2.54, 2.54)  # Size
-    hole_size: XY = XY(1.5, 1.5)  # Size
+    hole_size: XY = XY(0, 0)  # Size
+    hight: float = 5
+    diameter_inner: float = 2
+    diameter_outter: float = 5
+
     # openscad_file_path: str = import_stl("keyboardgenerator/KeySocket.stl")
 
     def draw_footprint_plate(self) -> OpenSCADObject:
         return (
-            cube([self.hole_size.x, self.hole_size.y, 5], center=True)
+            # cube([self.hole_size.x, self.hole_size.y, 5], center=True)
+            self.get_openscad_obj()
+            .rotate(self.angle_rotation)
+            .translate([self.center_point.x, self.center_point.y, 0])
+        )
+
+    def draw_footprint_plate_add(self) -> OpenSCADObject:
+        return (
+            # cube([self.hole_size.x, self.hole_size.y, 5], center=True)
+            self.get_openscad_obj()
             .rotate(self.angle_rotation)
             .translate([self.center_point.x, self.center_point.y, 0])
         )
 
     def get_openscad_obj(self) -> OpenSCADObject:
-        return cylinder(d=3, h=20, _fn=30, center=True)
+        delta = 0.1
+        return (
+            cylinder(d=self.diameter_outter, h=self.hight, _fn=30, center=True)
+            - cylinder(d=self.diameter_inner, h=self.hight + delta, _fn=30, center=True)
+        ).down((self.hight + delta + 0.5) / 2)
+
+
+class PlatePin(Pin):
+    pass
+    # openscad_file_path: str = import_stl("keyboardgenerator/KeySocket.stl")
+
+
+class PcbPin(Pin):
+    pass
 
 
 class Key(Part):
@@ -277,6 +306,12 @@ def get_part_obj(part_type: str, part_profile: str | None = None):
     elif part_profile == "pin":
         # print("Part type is arduino")
         return Pin
+    elif part_profile == "platepin":
+        # print("Part type is arduino")
+        return PlatePin
+    elif part_profile == "pcbpin":
+        # print("Part type is arduino")
+        return PcbPin
     elif part_type == "kailh":
         # print("Part type is kailh")
         return KailhChocKey
@@ -413,6 +448,13 @@ class Keyboard:
 
     def draw_plate(self) -> OpenSCADObject:
         plate_obj = union()
+        plate_add_obj = union()
         for part in self.parts_list:
             plate_obj += part.draw_footprint_plate()
-        return self._draw_base_plate(self.plate_border) - plate_obj
+            plate_add_obj += part.draw_footprint_plate_add()
+        return (
+            # self._draw_base_plate(self.plate_border) - plate_obj - debug(plate_add_obj)
+            self._draw_base_plate(self.plate_border)
+            - plate_obj
+            + plate_add_obj
+        )
