@@ -168,11 +168,11 @@ class Part:
         text: str,
     ):
         self.text = text
-        print("upper_left_corner", upper_left_corner, text)
+        # print("upper_left_corner", upper_left_corner, text)
         self.center_point = (upper_left_corner + size / 2).rotate(
             center_rotation, angle_rotation
         )
-        print("after upper_left_corner", self.center_point, text)
+        # print("after upper_left_corner", self.center_point, text)
         self.center_rotation = center_rotation
         self.angle_rotation = angle_rotation
         self.corners = Corners(upper_left_corner, size).rotate(
@@ -199,24 +199,24 @@ class Part:
 
     # Return the footprint of the part on the PCB layer as a openscad object
     # The function is place the footprint cube in the correct position and rotation it
-    def draw_footprint_pcb(self) -> OpenSCADObject:
+    def draw_pcb_sub(self) -> OpenSCADObject:
         return (
             cube([self.footprint_pcb.x, self.footprint_pcb.y, 5], center=True)
             .rotate(self.angle_rotation)
             .translate(self.center_point.x, self.center_point.y, 0)
         )
 
-    def draw_pcb(self) -> OpenSCADObject:
+    def draw_pcb_add(self) -> OpenSCADObject:
         return (
             self.get_openscad_obj()
             .rotate(self.angle_rotation)
             .translate(self.center_point.x, self.center_point.y, 0)
         )
 
-    def draw_footprint_plate(self) -> OpenSCADObject:
+    def draw_plate_sub(self) -> OpenSCADObject:
         return union()
 
-    def draw_footprint_plate_add(self) -> OpenSCADObject:
+    def draw_plate_add(self) -> OpenSCADObject:
         return union()
 
 
@@ -227,23 +227,25 @@ class Pin(Part):
     diameter_inner: float = 2
     diameter_outter: float = 5
 
+    @abstractmethod
+    def draw_pcb_add(self) -> OpenSCADObject:
+        raise NotImplementedError(
+            "This function must be implemented, for the part ", type(self)
+        )
+
+    @abstractmethod
+    def draw_plate_sub(self) -> OpenSCADObject:
+        raise NotImplementedError(
+            "This function must be implemented, for the part ", type(self)
+        )
+
+    @abstractmethod
+    def draw_plate_add(self) -> OpenSCADObject:
+        raise NotImplementedError(
+            "This function must be implemented, for the part ", type(self)
+        )
+
     # openscad_file_path: str = import_stl("keyboardgenerator/KeySocket.stl")
-
-    def draw_footprint_plate(self) -> OpenSCADObject:
-        return (
-            # cube([self.hole_size.x, self.hole_size.y, 5], center=True)
-            self.get_openscad_obj()
-            .rotate(self.angle_rotation)
-            .translate([self.center_point.x, self.center_point.y, 0])
-        )
-
-    def draw_footprint_plate_add(self) -> OpenSCADObject:
-        return (
-            # cube([self.hole_size.x, self.hole_size.y, 5], center=True)
-            self.get_openscad_obj()
-            .rotate(self.angle_rotation)
-            .translate([self.center_point.x, self.center_point.y, 0])
-        )
 
     def get_openscad_obj(self) -> OpenSCADObject:
         delta = 0.1
@@ -253,13 +255,31 @@ class Pin(Part):
         ).down((self.hight + delta + 0.5) / 2)
 
 
-class PlatePin(Pin):
-    pass
+class PinPlate(Pin):
+    def draw_pcb_add(self) -> OpenSCADObject:
+        return union()
+
+    def draw_plate_sub(self) -> OpenSCADObject:
+        return union()
+
+    def draw_plate_add(self) -> OpenSCADObject:
+        print("---------------------------------------")
+        return (
+            # cube([self.hole_size.x, self.hole_size.y, 5], center=True)
+            self.get_openscad_obj()
+            .rotate(self.angle_rotation)
+            .translate([self.center_point.x, self.center_point.y, 0])
+        )
+
     # openscad_file_path: str = import_stl("keyboardgenerator/KeySocket.stl")
 
 
-class PcbPin(Pin):
-    pass
+class PinPcb(Pin):
+    def draw_plate_add(self):
+        return union()
+
+    def draw_plate_sub(self) -> OpenSCADObject:
+        return union()
 
 
 class Key(Part):
@@ -267,7 +287,7 @@ class Key(Part):
     hole_size: XY
     openscad_file_path: str
 
-    def draw_footprint_plate(self) -> OpenSCADObject:
+    def draw_plate_sub(self) -> OpenSCADObject:
         return (
             cube([self.hole_size.x, self.hole_size.y, 5], center=True)
             .rotate(self.angle_rotation)
@@ -304,14 +324,14 @@ def get_part_obj(part_type: str, part_profile: str | None = None):
         # print("Part type is arduino")
         return Arduino
     elif part_profile == "pin":
-        # print("Part type is arduino")
+        print("Part type is Pin")
         return Pin
-    elif part_profile == "platepin":
-        # print("Part type is arduino")
-        return PlatePin
-    elif part_profile == "pcbpin":
-        # print("Part type is arduino")
-        return PcbPin
+    elif part_profile == "pinplate":
+        print("Part type is PlatePin")
+        return PinPlate
+    elif part_profile == "pinpcb":
+        print("Part type is PcbPin")
+        return PinPcb
     elif part_type == "kailh":
         # print("Part type is kailh")
         return KailhChocKey
@@ -434,27 +454,28 @@ class Keyboard:
 
         return polygonObj + polygon(points)
 
-    def draw_pcb(self) -> OpenSCADObject:
-        pcb_obj = union()
-        pcb_footprint = union()
+    def draw_pcb_add(self) -> OpenSCADObject:
+        pcb_objs_add = union()
+        pcb_objs_sub = union()
         for part in self.parts_list:
-            pcb_obj += part.draw_pcb()
-            pcb_footprint += part.draw_footprint_pcb()
-
-        return self._draw_base_plate(add_label=False) - pcb_footprint + pcb_obj
+            pcb_objs_add += part.draw_pcb_add()
+            pcb_objs_sub += part.draw_pcb_sub()
+        return (
+            self._draw_base_plate(add_label=False) - pcb_objs_sub + debug(pcb_objs_add)
+        )
 
     def draw_bottom(self) -> OpenSCADObject:
         return self._draw_base_plate(add_label=False)
 
     def draw_plate(self) -> OpenSCADObject:
-        plate_obj = union()
-        plate_add_obj = union()
+        plate_objs_sub = union()
+        plate_objs_add = union()
         for part in self.parts_list:
-            plate_obj += part.draw_footprint_plate()
-            plate_add_obj += part.draw_footprint_plate_add()
+            plate_objs_sub += part.draw_plate_sub()
+            plate_objs_add += part.draw_plate_add()
         return (
             # self._draw_base_plate(self.plate_border) - plate_obj - debug(plate_add_obj)
             self._draw_base_plate(self.plate_border)
-            - plate_obj
-            + plate_add_obj
+            - plate_objs_sub
+            + plate_objs_add
         )
