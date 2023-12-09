@@ -153,9 +153,14 @@ class Part:
     angle_rotation: float  # Equle 0 If no need to rotate the part
     openscad_file_path: str
     openscad_obj: OpenSCADObject
-    footprint_pcb: XY
     size: XY
     text: str
+
+    footprint_pcb: XY
+    footprint_plate: XY
+
+    spacing: XY = XY(0, 0)  # Size
+    hole_size: XY = XY(0, 0)  # Size
 
     # border_pcb: XY  # Add additional border to the part
     def __init__(
@@ -164,7 +169,6 @@ class Part:
         angle_rotation: float,
         center_rotation: XY,
         size: XY,
-        footprint_pcb: XY,
         text: str,
     ):
         self.text = text
@@ -179,7 +183,6 @@ class Part:
             center_rotation, angle_rotation
         )
         # self.openscad_obj = import_stl(self.openscad_file_path)
-        self.footprint_pcb = footprint_pcb
         self.size = size
 
     def get_openscad_obj(self) -> OpenSCADObject:
@@ -197,73 +200,84 @@ class Part:
             self.corners.rotate(self.center_point, self.angle_rotation)
         return self
 
-    # Return the footprint of the part on the PCB layer as a openscad object
-    # The function is place the footprint cube in the correct position and rotation it
-    def draw_pcb_sub(self) -> OpenSCADObject:
+    def draw_pcb_footprint(self) -> OpenSCADObject:
+        if self.footprint_pcb == XY(0, 0):
+            return union()
+
         return (
             cube([self.footprint_pcb.x, self.footprint_pcb.y, 5], center=True)
             .rotate(self.angle_rotation)
             .translate(self.center_point.x, self.center_point.y, 0)
         )
 
-    def draw_pcb_add(self) -> OpenSCADObject:
+    # # Return the part on the PCB layer as a openscad object
+    def draw_pcb_part(self) -> OpenSCADObject:
         return (
             self.get_openscad_obj()
             .rotate(self.angle_rotation)
             .translate(self.center_point.x, self.center_point.y, 0)
         )
 
-    def draw_plate_sub(self) -> OpenSCADObject:
+    def draw_pcb_part_addition_sub(self) -> OpenSCADObject:
         return union()
 
-    def draw_plate_add(self) -> OpenSCADObject:
+    def draw_pcb_part_addition_add(self) -> OpenSCADObject:
+        return union()
+
+    def draw_plate_footprint(self) -> OpenSCADObject:
+        if self.footprint_plate == XY(0, 0):
+            return union()
+        return (
+            cube([self.footprint_plate.x, self.footprint_plate.y, 5], center=True)
+            .rotate(self.angle_rotation)
+            .translate(self.center_point.x, self.center_point.y, 0)
+        )
+
+    def draw_plate_part(self) -> OpenSCADObject:
+        return union()
+
+    def draw_plate_part_addition_sub(self) -> OpenSCADObject:
+        return union()
+
+    def draw_plate_part_addition_add(self) -> OpenSCADObject:
         return union()
 
 
 class Pin(Part):
     spacing: XY = XY(2.54, 2.54)  # Size
     hole_size: XY = XY(0, 0)  # Size
+
+    footprint_plate: XY = spacing
+    footprint_pcb: XY = hole_size
+
     hight: float = 5
     diameter_inner: float = 2
     diameter_outter: float = 5
-
-    @abstractmethod
-    def draw_pcb_add(self) -> OpenSCADObject:
-        raise NotImplementedError(
-            "This function must be implemented, for the part ", type(self)
-        )
-
-    @abstractmethod
-    def draw_plate_sub(self) -> OpenSCADObject:
-        raise NotImplementedError(
-            "This function must be implemented, for the part ", type(self)
-        )
-
-    @abstractmethod
-    def draw_plate_add(self) -> OpenSCADObject:
-        raise NotImplementedError(
-            "This function must be implemented, for the part ", type(self)
-        )
-
-    # openscad_file_path: str = import_stl("keyboardgenerator/KeySocket.stl")
+    draw_delta = 0.1
+    cylihder_inner: OpenSCADObject = cylinder(
+        d=diameter_inner, h=hight + draw_delta, _fn=30, center=True
+    )
+    cylihder_outter: OpenSCADObject = cylinder(
+        d=diameter_outter, h=hight, _fn=30, center=True
+    )
 
     def get_openscad_obj(self) -> OpenSCADObject:
         delta = 0.1
-        return (
-            cylinder(d=self.diameter_outter, h=self.hight, _fn=30, center=True)
-            - cylinder(d=self.diameter_inner, h=self.hight + delta, _fn=30, center=True)
-        ).down((self.hight + delta + 0.5) / 2)
+        return (self.cylihder_outter - self.cylihder_inner).down(
+            (self.hight + delta + 0.5) / 2
+        )
 
 
 class PinPlate(Pin):
-    def draw_pcb_add(self) -> OpenSCADObject:
+    def draw_pcb_footprint(self) -> OpenSCADObject:
+        return self.cylihder_inner.rotate(self.angle_rotation).translate(
+            [self.center_point.x, self.center_point.y, 0]
+        )
+
+    def draw_pcb_part(self) -> OpenSCADObject:
         return union()
 
-    def draw_plate_sub(self) -> OpenSCADObject:
-        return union()
-
-    def draw_plate_add(self) -> OpenSCADObject:
-        print("---------------------------------------")
+    def draw_plate_part(self) -> OpenSCADObject:
         return (
             # cube([self.hole_size.x, self.hole_size.y, 5], center=True)
             self.get_openscad_obj()
@@ -271,15 +285,14 @@ class PinPlate(Pin):
             .translate([self.center_point.x, self.center_point.y, 0])
         )
 
-    # openscad_file_path: str = import_stl("keyboardgenerator/KeySocket.stl")
+    def draw_pcb_part_addition_sub(self) -> OpenSCADObject:
+        return self.cylihder_inner.rotate(self.angle_rotation).translate(
+            [self.center_point.x, self.center_point.y, 0]
+        )
 
 
 class PinPcb(Pin):
-    def draw_plate_add(self):
-        return union()
-
-    def draw_plate_sub(self) -> OpenSCADObject:
-        return union()
+    pass
 
 
 class Key(Part):
@@ -287,12 +300,18 @@ class Key(Part):
     hole_size: XY
     openscad_file_path: str
 
-    def draw_plate_sub(self) -> OpenSCADObject:
+    def _draw_footprint(self) -> OpenSCADObject:
         return (
             cube([self.hole_size.x, self.hole_size.y, 5], center=True)
             .rotate(self.angle_rotation)
             .translate([self.center_point.x, self.center_point.y, 0])
         )
+
+    def draw_pcb_footprint(self) -> OpenSCADObject:
+        return self._draw_footprint()
+
+    def draw_plate_footprint(self) -> OpenSCADObject:
+        return self._draw_footprint()
 
     def get_openscad_obj(self) -> OpenSCADObject:
         return import_stl(self.openscad_file_path).rotateY(180)
@@ -301,18 +320,30 @@ class Key(Part):
 class CherryMxKey(Key):
     spacing = XY(19.05, 19.05)  # Size
     hole_size = XY(14, 14)  # Size
+
+    footprint_plate: XY = spacing
+    footprint_pcb: XY = hole_size
+
     openscad_file_path = "keyboardgenerator/KeySocket.stl"
 
 
 class KailhChocKey(Key):
     spacing = XY(19.05, 19.05)  # Size
     hole_size = XY(14, 14)  # Size
+
+    footprint_plate: XY = spacing
+    footprint_pcb: XY = hole_size
+
     openscad_file_path = "keyboardgenerator/KeySocket.stl"
 
 
 class Arduino(Part):
     spacing = XY(30, 30)  # Size
     hole_size = XY(0, 0)  # Size
+
+    footprint_plate: XY = hole_size
+    footprint_pcb: XY = spacing
+
     openscad_file_path = "keyboardgenerator/KeySocket.stl"
 
     def get_openscad_obj(self) -> OpenSCADObject:
@@ -327,10 +358,10 @@ def get_part_obj(part_type: str, part_profile: str | None = None):
         print("Part type is Pin")
         return Pin
     elif part_profile == "pinplate":
-        print("Part type is PlatePin")
+        # print("Part type is PlatePin")
         return PinPlate
     elif part_profile == "pinpcb":
-        print("Part type is PcbPin")
+        # print("Part type is PcbPin")
         return PinPcb
     elif part_type == "kailh":
         # print("Part type is kailh")
@@ -402,14 +433,12 @@ class Keyboard:
             center_rotation = XY(part.rotation_x, part.rotation_y) * key_size_scale
             size = XY(part.width, part.height) * key_size_scale
             label = part.labels[cls.part_label_index]
-            footprint_pcb = key_size_scale
             part_list.append(
                 part_obj(
                     position,
                     part.rotation_angle,
                     center_rotation,
                     size,
-                    footprint_pcb,
                     label,
                 )
             )
@@ -427,7 +456,6 @@ class Keyboard:
         for part in self.parts_list:
             corner = part.add_border(border).corners
             for corner in corner.get_coruners():
-                # polygonObj += self.create_point_sphere(corner)
                 if add_label:
                     polygonObj += (
                         text(part.text, size=4)
@@ -454,28 +482,61 @@ class Keyboard:
 
         return polygonObj + polygon(points)
 
-    def draw_pcb_add(self) -> OpenSCADObject:
-        pcb_objs_add = union()
-        pcb_objs_sub = union()
+    def draw_plate(self) -> OpenSCADObject:
+        footprint_objs = union()
+        part_objs = union()
+        part_addition_sub = union()
+        part_addition_add = union()
+
         for part in self.parts_list:
-            pcb_objs_add += part.draw_pcb_add()
-            pcb_objs_sub += part.draw_pcb_sub()
+            footprint_objs += part.draw_plate_footprint()
+            part_objs += part.draw_plate_part()
+            part_addition_sub += part.draw_plate_part_addition_sub()
+            part_addition_add += part.draw_plate_part_addition_add()
         return (
-            self._draw_base_plate(add_label=False) - pcb_objs_sub + debug(pcb_objs_add)
+            self._draw_base_plate(add_label=True)
+            - footprint_objs
+            + part_objs
+            - debug(part_addition_sub)
+            + part_addition_add
+        )
+
+    def draw_pcb_add(self) -> OpenSCADObject:
+        footprint_objs = union()
+        part_objs = union()
+        part_addition_sub = union()
+        part_addition_add = union()
+
+        for part in self.parts_list:
+            footprint_objs += part.draw_pcb_footprint()
+            part_objs += part.draw_pcb_part()
+            part_addition_sub += part.draw_pcb_part_addition_sub()
+            part_addition_add += part.draw_pcb_part_addition_add()
+        return (
+            self._draw_base_plate(add_label=False)
+            - footprint_objs
+            + part_objs
+            - part_addition_sub
+            + part_addition_add
         )
 
     def draw_bottom(self) -> OpenSCADObject:
         return self._draw_base_plate(add_label=False)
 
-    def draw_plate(self) -> OpenSCADObject:
-        plate_objs_sub = union()
-        plate_objs_add = union()
-        for part in self.parts_list:
-            plate_objs_sub += part.draw_plate_sub()
-            plate_objs_add += part.draw_plate_add()
-        return (
-            # self._draw_base_plate(self.plate_border) - plate_obj - debug(plate_add_obj)
-            self._draw_base_plate(self.plate_border)
-            - plate_objs_sub
-            + plate_objs_add
-        )
+
+# Create Plate: _base_plate - part.footprint + part.plate_openscad_obj + part.plate_additional_add - part.plate_additional_sub
+
+# self._draw_base_plate(border=)
+#    - sum(part.draw_plate_footprint)
+#    + sum(part.plate_openscad_obj)
+#    - sum(part.plate_additional_sub)
+
+
+# draw_base_plate_xxx - will affect the base plate of the keyboard
+## part.draw_base_plate_sub()
+## part.draw_base_plate_add()
+# draw_plate - Will affect the plate it self
+# part.draw_plate_add()
+# part.draw_plate_sub()
+# part.draw_sub_add()
+# part.draw_sub_sub()
