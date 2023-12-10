@@ -292,7 +292,28 @@ class PinPlate(Pin):
 
 
 class PinPcb(Pin):
-    pass
+    # Should be bottom palte
+    # def draw_plate_footprint(self) -> OpenSCADObject:
+    # return self.cylihder_inner.rotate(self.angle_rotation).translate(
+    # [self.center_point.x, self.center_point.y, 0]
+    # )
+
+    def draw_plate_part(self) -> OpenSCADObject:
+        return union()
+
+    def draw_pcb_part(self) -> OpenSCADObject:
+        return (
+            # cube([self.hole_size.x, self.hole_size.y, 5], center=True)
+            self.get_openscad_obj()
+            .rotate(self.angle_rotation)
+            .translate([self.center_point.x, self.center_point.y, 0])
+        )
+
+    # Should be bottom palte
+    # def draw__part_addition_sub(self) -> OpenSCADObject:
+    # return self.cylihder_inner.rotate(self.angle_rotation).translate(
+    # [self.center_point.x, self.center_point.y, 0]
+    # )
 
 
 class Key(Part):
@@ -450,7 +471,7 @@ class Keyboard:
         return sphere(d=1).color("blue").translate(point.x, point.y, -2)
 
     def _draw_base_plate(self, border=0, add_label=True) -> OpenSCADObject:
-        polygonObj = union()
+        polygonObj = []
 
         points_list = []
         for part in self.parts_list:
@@ -462,6 +483,7 @@ class Keyboard:
                         .rotate(180)
                         .translate(part.center_point.x + 5, part.center_point.y + 3, 3)
                         .color("black")
+                        .linear_extrude(1)
                     )
                 points_list.append(corner.get_tuple())
 
@@ -480,7 +502,10 @@ class Keyboard:
         for _x, _y in zip(x, y):
             points.append((_x, _y))
 
-        return polygonObj + polygon(points)
+        if add_label:
+            return polygonObj + polygon(points).linear_extrude(1)
+
+        return polygon(points).linear_extrude(1)
 
     def draw_plate(self) -> OpenSCADObject:
         footprint_objs = union()
@@ -502,10 +527,15 @@ class Keyboard:
         )
 
     def draw_pcb_add(self) -> OpenSCADObject:
-        footprint_objs = union()
-        part_objs = union()
-        part_addition_sub = union()
-        part_addition_add = union()
+        # footprint_objs = union()
+        # part_objs = union()
+        # part_addition_sub = union()
+        # part_addition_add = union()
+
+        footprint_objs = []
+        part_objs = []
+        part_addition_sub = []
+        part_addition_add = []
 
         for part in self.parts_list:
             footprint_objs += part.draw_pcb_footprint()

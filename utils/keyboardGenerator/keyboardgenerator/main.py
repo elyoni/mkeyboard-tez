@@ -21,9 +21,9 @@ KEY_PATH = "keyboardgenerator/KeySocket.stl"
 
 
 def main():
-    keyboard_plate = Keyboard.from_kle_obj(get_json_const_ergodox_arduino_pin01())
-    keyboard_pcb = Keyboard.from_kle_obj(get_json_const_ergodox_arduino_pin01())
-    keyboard_bottom = Keyboard.from_kle_obj(get_json_const_ergodox_arduino_pin01())
+    keyboard_plate = Keyboard.from_kle_obj(get_json_const_ergodox_arduino_pin02())
+    keyboard_pcb = Keyboard.from_kle_obj(get_json_const_ergodox_arduino_pin02())
+    keyboard_bottom = Keyboard.from_kle_obj(get_json_const_ergodox_arduino_pin02())
 
     pcb = keyboard_pcb.draw_pcb_add()
     plate = keyboard_plate.draw_plate()
@@ -201,18 +201,18 @@ def get_json_const_ergodox_arduino_pin02() -> kle_serial.Keyboard:
 [{y:-0.875,x:2.5},"@/2",{x:1},"$/4"],
 [{y:-0.875,x:5.5},"%/5","LS0",{x:0.25,a:7,w:1.5,h:2.75},"\\n\\n\\n\\nArduino"],
 [{y:-0.875,w:1.5},"",{a:4},"!/1"],
-[{y:-0.495,x:5.25,w:0.5,h:0.5},"pin\\n\\n\\n\\nplatepin"],
+[{y:-0.495,x:5.25,w:0.5,h:0.5},"\\n\\n\\n\\npinplate"],
 [{y:-0.88,x:3.5},"E"],
 [{y:-0.875,x:2.5},"W",{x:1},"R"],
-[{y:-0.995,x:2.25,w:0.5,h:0.5},"Pin\\n\\n\\n\\nplatepin"],
+[{y:-0.995,x:2.25,w:0.5,h:0.5},"\\n\\n\\n\\npinpcb"],
 [{y:-0.88,x:5.5},"T",{h:1.5},"LS1"],
 [{y:-0.875,a:7,w:1.5},"",{a:4},"Q"],
 [{y:-0.375,x:3.5},"D"],
 [{y:-0.875,x:2.5},"S",{x:1},"F"],
 [{y:-0.875,x:5.5},"G"],
 [{y:-0.875,a:7,w:1.5},"",{a:4},"A"],
-[{y:-0.625,x:5.25,w:0.5,h:0.5},"pin\\n\\n\\n\\nplatepin",{x:0.75,h:1.5},"LS2"],
-[{y:-0.75,x:2.25,w:0.5,h:0.5},"pin\\n\\n\\n\\nplatepin",{x:0.75},"C"],
+[{y:-0.625,x:5.25,w:0.5,h:0.5},"\\n\\n\\n\\npinplate",{x:0.75,h:1.5},"LS2"],
+[{y:-0.75,x:2.25,w:0.5,h:0.5},"\\n\\n\\n\\npinpcb",{x:0.75},"C"],
 [{y:-0.875,x:2.5},"X",{x:1},"V"],
 [{y:-0.875,x:5.5},"B"],
 [{y:-0.875,a:7,w:1.5},"",{a:4},"Z"],
