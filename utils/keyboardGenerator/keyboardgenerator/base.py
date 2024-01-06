@@ -1,15 +1,30 @@
 #!/usr/bin/env p - plate_objython3
 
-from abc import abstractmethod
+# from abc import abstractmethod
 import numpy as np
 import pykle_serial as kle_serial
 from scipy.spatial import ConvexHull
+from keyboardgenerator import base
 
 # import math
 
 
 from solid2.core.object_base import OpenSCADObject
-from solid2 import cube, import_stl, union, polygon, sphere, text, cylinder, debug
+from solid2 import (
+    cube,
+    import_stl,
+    union,
+    polygon,
+    sphere,
+    text,
+    cylinder,
+    debug,
+    set_global_fn,
+)
+
+X = 0
+Y = 1
+Z = 2
 
 
 class XY:
@@ -182,7 +197,6 @@ class Part:
         self.corners = Corners(upper_left_corner, size).rotate(
             center_rotation, angle_rotation
         )
-        # self.openscad_obj = import_stl(self.openscad_file_path)
         self.size = size
 
     def get_openscad_obj(self) -> OpenSCADObject:
@@ -224,6 +238,12 @@ class Part:
     def draw_pcb_part_addition_add(self) -> OpenSCADObject:
         return union()
 
+    def draw_bottom_part_addition_sub(self) -> OpenSCADObject:
+        return union()
+
+    def draw_bottom_part_addition_add(self) -> OpenSCADObject:
+        return union()
+
     def draw_plate_footprint(self) -> OpenSCADObject:
         if self.footprint_plate == XY(0, 0):
             return union()
@@ -255,16 +275,16 @@ class Pin(Part):
     diameter_outter: float = 5
     draw_delta = 0.1
     cylihder_inner: OpenSCADObject = cylinder(
-        d=diameter_inner, h=hight + draw_delta, _fn=30, center=True
+        d=diameter_inner, h=hight + draw_delta, _fn=50, center=True
     )
     cylihder_outter: OpenSCADObject = cylinder(
-        d=diameter_outter, h=hight, _fn=30, center=True
+        d=diameter_outter, h=hight, _fn=50, center=True
     )
 
     def get_openscad_obj(self) -> OpenSCADObject:
         delta = 0.1
-        return (self.cylihder_outter - self.cylihder_inner).down(
-            (self.hight + delta + 0.5) / 2
+        return (self.cylihder_outter - self.cylihder_inner).up(
+            (self.hight + delta + 0.5) / 2 - 0.8
         )
 
 
@@ -298,6 +318,9 @@ class PinPcb(Pin):
     # [self.center_point.x, self.center_point.y, 0]
     # )
 
+    def draw_plate_footprint(self) -> OpenSCADObject:
+        return union()
+
     def draw_plate_part(self) -> OpenSCADObject:
         return union()
 
@@ -307,6 +330,16 @@ class PinPcb(Pin):
             self.get_openscad_obj()
             .rotate(self.angle_rotation)
             .translate([self.center_point.x, self.center_point.y, 0])
+        )
+
+    def draw_pcb_part_addition_sub(self) -> OpenSCADObject:
+        return self.cylihder_inner.rotate(self.angle_rotation).translate(
+            [self.center_point.x, self.center_point.y, 0]
+        )
+
+    def draw_bottom_part_addition_sub(self) -> OpenSCADObject:
+        return self.cylihder_inner.rotate(self.angle_rotation).translate(
+            [self.center_point.x, self.center_point.y, 0]
         )
 
     # Should be bottom palte
@@ -335,7 +368,9 @@ class Key(Part):
         return self._draw_footprint()
 
     def get_openscad_obj(self) -> OpenSCADObject:
-        return import_stl(self.openscad_file_path).rotateY(180)
+        return import_stl(self.openscad_file_path)
+
+    # .rotateY(180)
 
 
 class CherryMxKey(Key):
@@ -345,7 +380,12 @@ class CherryMxKey(Key):
     footprint_plate: XY = spacing
     footprint_pcb: XY = hole_size
 
-    openscad_file_path = "keyboardgenerator/KeySocket.stl"
+    openscad_file_path = "keyboardgenerator/KeyHotswap.stl"
+
+    def get_openscad_obj(self) -> OpenSCADObject:
+        key = import_stl(self.openscad_file_path)
+        # .rotateY(180)
+        return key
 
 
 class KailhChocKey(Key):
@@ -355,20 +395,92 @@ class KailhChocKey(Key):
     footprint_plate: XY = spacing
     footprint_pcb: XY = hole_size
 
-    openscad_file_path = "keyboardgenerator/KeySocket.stl"
+    openscad_file_path = "keyboardgenerator/KeyHotswap.stl"
 
 
 class Arduino(Part):
-    spacing = XY(30, 30)  # Size
+    spacing = XY(19, 37)  # Size
     hole_size = XY(0, 0)  # Size
+
+    pcb_size: tuple[float, float, float] = (spacing.x, spacing.y, 1)  # [mm,mm,mm]
+    # pins_socket: tuple[float, float, float] = (3, 31.5, 4)  # [mm,mm,mm]
+    pins_diameter: float = 1.5
+    pins_row_space: int = 15  # mm
+    pins_number: int = 12  # Each side
+    pins_space: float = 2.54  # mm
+
+    holder_pole_size: tuple[float, float, float] = (3, 3, 4)  # [mm,mm,mm]
+    holder_tooth_size: tuple[float, float, float] = (3, 3.5, 1)  # [mm,mm,mm]
 
     footprint_plate: XY = hole_size
     footprint_pcb: XY = spacing
 
     openscad_file_path = "keyboardgenerator/KeySocket.stl"
 
+    def _draw_pings(self) -> OpenSCADObject:
+        pins_socket_obj: OpenSCADObject = union()
+        for i in range(self.pins_number):
+            pins_socket_obj += cylinder(
+                d=self.pins_diameter, h=8, _fn=30, center=True
+            ).translateY(i * self.pins_space)
+        pins_socket_obj = pins_socket_obj.translateY(-12.7)
+        # pins_socket_obj = pins_socket_obj.translateY(2.75)
+        #
+        return pins_socket_obj
+
+    def _draw_holder_pole(self) -> OpenSCADObject:
+        return (
+            cube(self.holder_pole_size, center=True)
+            + cube(self.holder_tooth_size, center=True)
+            .down(self.holder_pole_size[Z] / 2)
+            .back((self.holder_tooth_size[Y] - self.holder_pole_size[Y]) / 2)
+        ).down(self.holder_pole_size[Z] / 2 + self.pcb_size[Z] / 2 - self.pcb_size[Z])
+
+    def _draw_holder_pin(self) -> OpenSCADObject:
+        return cylinder(d=1, h=3, center=True).down(
+            self.holder_pole_size[Z] / 2 + self.pcb_size[Z] / 2 - 1
+        )
+
+    def draw(self) -> OpenSCADObject:
+        baseLayer: OpenSCADObject = cube(self.pcb_size, center=True)
+        pins_socket_obj: OpenSCADObject = self._draw_pings()
+
+        return (
+            baseLayer
+            - pins_socket_obj.translateX(-self.pins_row_space / 2)
+            - pins_socket_obj.translateX(self.pins_row_space / 2)
+            # + self._draw_holder_pole().translate(
+            # [
+            # self.pcb_size[X] / 2 - self.holder_pole_size[X] / 2,
+            # self.pcb_size[Y] / 2 - self.holder_pole_size[Y] / 2 + 1.5,
+            # 0,
+            # ]
+            # )
+            # + self._draw_holder_pole().translate(
+            # [
+            # -self.pcb_size[X] / 2 + self.holder_pole_size[X] / 2,
+            # self.pcb_size[Y] / 2 - self.holder_pole_size[Y] / 2 + 1.5,
+            # 0,
+            # ]
+            # )
+            # + self._draw_holder_pin().translateY(-35 / 2)
+            # + self._draw_holder_pin().translate(
+            # [
+            # -self.pcb_size[X] / 2 + self.holder_pole_size[X] / 2,
+            # self.pcb_size[Y] / 2 - self.holder_pole_size[Y] / 2 + 1.5,
+            # 0,
+            # ]
+            # )
+        ).down(0)
+
+        # .down(5 / 2 + 2 / 2).forward(37 / 2)
+        # ).down(0.5)
+
     def get_openscad_obj(self) -> OpenSCADObject:
-        return import_stl(self.openscad_file_path)
+        # return base.Arduino().draw(self)
+        return self.draw()
+
+    # import_stl(self.openscad_file_path)
 
 
 def get_part_obj(part_type: str, part_profile: str | None = None):
@@ -392,7 +504,8 @@ def get_part_obj(part_type: str, part_profile: str | None = None):
         return CherryMxKey
     else:
         raise ValueError(
-            "Don't know what type of spacing you are using, add the information in the json file"
+            "Don't know what type of spacing you are using,"
+            "add the information in the json file"
             "Look at the readme file for more information"
         )
 
@@ -427,7 +540,8 @@ class Keyboard:
             return KailhChocKey.spacing
         else:
             raise ValueError(
-                "Don't know what type of spacing you are using, add the information in the json file"
+                "Don't know what type of spacing you are using,"
+                "add the information in the json file"
                 "Look at the readme file for more information    " + switch_type
             )
 
@@ -480,7 +594,7 @@ class Keyboard:
                 if add_label:
                     polygonObj += (
                         text(part.text, size=4)
-                        .rotate(180)
+                        # .rotate(180)
                         .translate(part.center_point.x + 5, part.center_point.y + 3, 3)
                         .color("black")
                         .linear_extrude(1)
@@ -502,10 +616,10 @@ class Keyboard:
         for _x, _y in zip(x, y):
             points.append((_x, _y))
 
-        if add_label:
-            return polygonObj + polygon(points).linear_extrude(1)
+        # if add_label:
+        # return polygonObj + polygon(points).linear_extrude(1)
 
-        return polygon(points).linear_extrude(1)
+        return polygonObj + polygon(points).linear_extrude(2).down(0.5)
 
     def draw_plate(self) -> OpenSCADObject:
         footprint_objs = union()
@@ -542,6 +656,7 @@ class Keyboard:
             part_objs += part.draw_pcb_part()
             part_addition_sub += part.draw_pcb_part_addition_sub()
             part_addition_add += part.draw_pcb_part_addition_add()
+
         return (
             self._draw_base_plate(add_label=False)
             - footprint_objs
@@ -551,7 +666,13 @@ class Keyboard:
         )
 
     def draw_bottom(self) -> OpenSCADObject:
-        return self._draw_base_plate(add_label=False)
+        bottom_objs = self._draw_base_plate(add_label=False)
+
+        for part in self.parts_list:
+            bottom_objs -= part.draw_bottom_part_addition_sub()
+            bottom_objs += part.draw_bottom_part_addition_add()
+
+        return bottom_objs
 
 
 # Create Plate: _base_plate - part.footprint + part.plate_openscad_obj + part.plate_additional_add - part.plate_additional_sub

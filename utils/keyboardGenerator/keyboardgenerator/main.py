@@ -17,13 +17,11 @@ import os
 
 from keyboardgenerator.base import Keyboard
 
-KEY_PATH = "keyboardgenerator/KeySocket.stl"
-
 
 def main():
-    keyboard_plate = Keyboard.from_kle_obj(get_json_const_ergodox_arduino_pin02())
-    keyboard_pcb = Keyboard.from_kle_obj(get_json_const_ergodox_arduino_pin02())
-    keyboard_bottom = Keyboard.from_kle_obj(get_json_const_ergodox_arduino_pin02())
+    keyboard_plate = Keyboard.from_kle_obj(get_arcade_print())
+    keyboard_pcb = Keyboard.from_kle_obj(get_arcade_print())
+    keyboard_bottom = Keyboard.from_kle_obj(get_arcade_print())
 
     pcb = keyboard_pcb.draw_pcb_add()
     plate = keyboard_plate.draw_plate()
@@ -33,21 +31,20 @@ def main():
     plate.save_as_scad("plate.scad")
     bottom.save_as_scad("bottom.scad")
 
+    # (pcb + plate + bottom).save_as_scad("keyboard.scad")
     # .save_as_scad("pcb.scad")
     # keyboard_bottom.draw_bottom().save_as_scad("bottom.scad")
 
-    (pcb.color("gray") + plate.up(40) + bottom.down(40).color("blue")).save_as_scad(
+    (pcb.color("gray") + plate.down(40) + bottom.up(40).color("blue")).save_as_scad(
         "keyboard.scad"
     )
-    # (
-    # keyboard_pcb.draw_pcb().color("gray")
-    # + keyboard_plate.draw_plate().up(40)
-    # + keyboard_bottom.draw_bottom().down(40)
-    # ).save_as_scad("all.scad")
     print("Created new scad files")
 
-    print("\tpcb scad file", os.path.abspath("pcb.scad"))
-    print("\tplate scad file", os.path.abspath("plate.scad"))
+    print("\tPcb scad file", os.path.abspath("pcb.scad"))
+    print("\tPlate scad file", os.path.abspath("plate.scad"))
+    print("\tBottom scad file", os.path.abspath("bottom.scad"))
+    print()
+    print("\tKeyboard scad file", os.path.abspath("keyboard.scad"))
 
     print("done")
 
@@ -259,6 +256,39 @@ def get_json_const_05() -> kle_serial.Keyboard:
     keyboard = kle_serial.parse(
         """[
 ["Num Lock"],
+    ]"""
+    )
+    return keyboard
+
+
+def get_first_keyboard_print() -> kle_serial.Keyboard:
+    keyboard = kle_serial.parse(
+        """[
+[{a:7,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate",{x:1.25,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb",{x:1,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate"],
+[{y:-0.75,x:0.25},"",""],
+[{y:-0.5,x:2.25},"\\n\\n\\n\\nArduino"],
+[{y:-0.75,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb",{x:2.75,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb"],
+[{y:-0.75,x:0.25},"",""],
+[{w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate",{x:1.25,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb",{x:1,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate"]
+
+    ]"""
+    )
+    return keyboard
+
+
+def get_arcade_print() -> kle_serial.Keyboard:
+    keyboard = kle_serial.parse(
+        """[
+[{y:0.75,x:8.5,a:7,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate"],
+[{y:-0.75,x:0.75,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate",{x:2.5,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb",{x:1.25,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate",{x:1.75},""],
+[{y:-0.75,x:1},"","","",{x:2.75},""],
+[{y:-0.75,x:5.75},""],
+[{y:-0.75,x:4.25},"\\n\\n\\n\\nArduino",{x:3.25,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb"],
+[{y:-0.75,x:0.75,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb",{x:6.25,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb",{x:-0.25},""],
+[{y:-0.75,x:1},"","","",{x:1.5,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb",{x:0.75},""],
+[{y:-0.75,x:5.75},""],
+[{y:-0.5,x:0.75,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate",{x:2.5,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb",{x:4.25,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate"],
+[{y:-0.75,x:5.5,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate"]
     ]"""
     )
     return keyboard
