@@ -19,11 +19,12 @@ from keyboardgenerator.base import Keyboard
 
 
 def main():
-    keyboard_plate = Keyboard.from_kle_obj(get_arcade_print())
-    keyboard_pcb = Keyboard.from_kle_obj(get_arcade_print())
-    keyboard_bottom = Keyboard.from_kle_obj(get_arcade_print())
+    keyboard_json = get_json_const_05()
+    keyboard_plate = Keyboard.from_kle_obj(keyboard_json)
+    keyboard_pcb = Keyboard.from_kle_obj(keyboard_json)
+    keyboard_bottom = Keyboard.from_kle_obj(keyboard_json)
 
-    pcb = keyboard_pcb.draw_pcb_add()
+    pcb = keyboard_pcb.draw_pcb()
     plate = keyboard_plate.draw_plate()
     bottom = keyboard_bottom.draw_bottom()
 
@@ -255,7 +256,13 @@ def get_json_const_04() -> kle_serial.Keyboard:
 def get_json_const_05() -> kle_serial.Keyboard:
     keyboard = kle_serial.parse(
         """[
-["Num Lock"],
+[{x:0.15,a:7,w:0.5,h:0.5},"PinPlate",{x:-0.4},"A",{x:-0.1,w:0.5,h:0.5},"PinPlate",{x:-0.4},"B",{x:-0.1,w:0.5,h:0.5},"PinPlate"],
+[{y:-0.75,x:0.15,w:0.5,h:0.5},"PinPcb",{x:0.5,w:0.5,h:0.5},"PinPcb",{x:0.5,w:0.5,h:0.5},"PinPcb"],
+[{y:-0.45,x:0.15,w:0.5,h:0.5},"PinPlate",{x:0.5,w:0.5,h:0.5},"PinPlate",{x:0.5,w:0.5,h:0.5},"PinPlate"]
+
+
+
+
     ]"""
     )
     return keyboard
@@ -292,6 +299,43 @@ def get_arcade_print() -> kle_serial.Keyboard:
     ]"""
     )
     return keyboard
+
+
+def get_minimal_keyboard() -> kle_serial.Keyboard:
+    keyboard = kle_serial.parse(
+        """[
+[{y:0.25,x:2,c:"#ff0000",a:7,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate",{x:-0.5,c:"#cccccc"},""],
+[{y:-0.75,x:1},"",{x:1},"",{c:"#ff0000",w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate",{x:-0.5,c:"#cccccc"},""],
+[{y:-0.75},"",{x:-1,c:"#ff0000",w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate"],
+[{y:-0.5,x:2,c:"#cccccc"},""],
+[{y:-0.75,x:1},"",{x:1},"","","\\n\\n\\n\\nArduino"],
+[{y:-0.75},""],
+[{y:-0.5,x:2},""],
+[{y:-0.75,x:1},"",{x:1},"",""],
+[{y:-0.75},"",{x:1,c:"#ff0000",w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate"],
+[{y:-0.75,x:4,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate"],
+[{y:-0.75,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate"],
+[{y:-0.75,x:3,c:"#cccccc"},""],
+[{r:15,y:-2.25,x:5},"",""]
+
+
+
+    ]"""
+    )
+    return keyboard
+
+
+# [{y: 0.25, x: 2, a: 7}, ""],
+# [{y: -0.75, x: 1}, "", {x: 1}, "", ""],
+# [{y: -0.75}, ""],
+# [{y: -0.5, x: 2}, ""],
+# [{y: -0.75, x: 1}, "", {x: 1}, "", "", "\\n\\n\\n\\nArduino"],
+# [{y: -0.75}, ""],
+# [{y: -0.5, x: 2}, ""],
+# [{y: -0.75, x: 1}, "", {x: 1}, "", ""],
+# [{y: -0.75}, ""],
+# [{y: -0.25, x: 3}, ""],
+# [{r: 15, y: -2.25, x: 5}, "", ""]
 
 
 if __name__ == "__main__":
