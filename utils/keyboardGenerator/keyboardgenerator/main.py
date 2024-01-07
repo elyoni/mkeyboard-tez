@@ -19,7 +19,7 @@ from keyboardgenerator.base import Keyboard
 
 
 def main():
-    keyboard_json = get_json_const_05()
+    keyboard_json = get_arcade_print()
     keyboard_plate = Keyboard.from_kle_obj(keyboard_json)
     keyboard_pcb = Keyboard.from_kle_obj(keyboard_json)
     keyboard_bottom = Keyboard.from_kle_obj(keyboard_json)
@@ -286,16 +286,19 @@ def get_first_keyboard_print() -> kle_serial.Keyboard:
 def get_arcade_print() -> kle_serial.Keyboard:
     keyboard = kle_serial.parse(
         """[
-[{y:0.75,x:8.5,a:7,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate"],
-[{y:-0.75,x:0.75,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate",{x:2.5,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb",{x:1.25,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate",{x:1.75},""],
-[{y:-0.75,x:1},"","","",{x:2.75},""],
-[{y:-0.75,x:5.75},""],
-[{y:-0.75,x:4.25},"\\n\\n\\n\\nArduino",{x:3.25,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb"],
-[{y:-0.75,x:0.75,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb",{x:6.25,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb",{x:-0.25},""],
-[{y:-0.75,x:1},"","","",{x:1.5,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb",{x:0.75},""],
-[{y:-0.75,x:5.75},""],
-[{y:-0.5,x:0.75,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate",{x:2.5,w:0.5,h:0.5},"\\n\\n\\n\\nPinPcb",{x:4.25,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate"],
-[{y:-0.75,x:5.5,w:0.5,h:0.5},"\\n\\n\\n\\nPinPlate"]
+[{y:0.25,x:7,a:7},"",{x:-0.25,w:0.5,h:0.5},"PinPcb"],
+[{y:-0.75,x:0.15,w:0.5,h:0.5},"PinPcb",{x:-0.4},"","","",{x:-0.1,w:0.5,h:0.5},"PinPcb",{x:2.35},""],
+[{y:-0.75,x:4.9,w:0.5,h:0.5},"PinPcb",{x:-0.4},""],
+[{y:-0.75,x:3.5},"Arduino"],
+[{y:-0.9,x:6.9,w:0.5,h:0.5},"PinPlate"],
+[{y:-0.85,x:7},""],
+[{y:-0.9,x:5.9,w:0.5,h:0.5},"PinPlate"],
+[{y:-0.95,x:1.15,w:0.5,h:0.5},"PinPlate",{x:0.5,w:0.5,h:0.5},"PinPlate"],
+[{y:-0.9,x:0.25},"","","",{x:2.75},""],
+[{y:-0.75,x:5},""],
+[{y:-0.75,x:7.75,w:0.5,h:0.5},"PinPcb"],
+[{y:-0.75,x:0.15,w:0.5,h:0.5},"PinPcb",{x:2.5,w:0.5,h:0.5},"PinPcb"],
+[{y:-0.75,x:4.9,w:0.5,h:0.5},"PinPcb"]
     ]"""
     )
     return keyboard

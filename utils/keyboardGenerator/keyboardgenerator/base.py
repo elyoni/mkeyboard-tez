@@ -26,6 +26,8 @@ X = 0
 Y = 1
 Z = 2
 
+LAYER_THICKNESS = 2.16
+
 
 ADD_LABEL = False
 
@@ -296,7 +298,7 @@ class Pin(Part):
                     (self.hight - 2) / 2
                 )
             )
-            - self.cylihder_inner
+            - self.cylihder_inner.up(1)
         ).up((self.hight + delta + 0.5) / 2 - 0.8)
 
 
@@ -374,10 +376,19 @@ class Key(Part):
         )
 
     def draw_pcb_footprint(self) -> OpenSCADObject:
-        return self._draw_footprint()
+        return (
+            cube([self.size.x, self.size.y, 5], center=True)
+            .rotate(self.angle_rotation)
+            .translate([self.center_point.x, self.center_point.y, 0])
+        )
 
     def draw_plate_footprint(self) -> OpenSCADObject:
-        return self._draw_footprint()
+        return (
+            cube([self.hole_size.x, self.hole_size.y, 5], center=True)
+            .rotate(self.angle_rotation)
+            .translate([self.center_point.x, self.center_point.y, 0])
+        )
+        # return self._draw_footprint()
 
     def get_openscad_obj(self) -> OpenSCADObject:
         return import_stl(self.openscad_file_path)
@@ -395,8 +406,9 @@ class CherryMxKey(Key):
     openscad_file_path = "keyboardgenerator/KeyHotswap.stl"
 
     def get_openscad_obj(self) -> OpenSCADObject:
-        key = import_stl(self.openscad_file_path)
-        # .rotateY(180)
+        key = import_stl(self.openscad_file_path).up(
+            0.12 / 2
+        )  # The 0.12 is the height of the STL object in fusion
         return key
 
 
@@ -494,8 +506,6 @@ class Arduino(Part):
     def get_openscad_obj(self) -> OpenSCADObject:
         # return base.Arduino().draw(self)
         return self.draw()
-
-    # import_stl(self.openscad_file_path)
 
 
 def get_part_obj(part_type: str, part_profile: str | None = None):
@@ -612,6 +622,9 @@ class Keyboard:
         return sphere(d=1).color("blue").translate(point.x, point.y, -2)
 
     def _draw_base_plate(self, border=0, add_label=ADD_LABEL) -> OpenSCADObject:
+        if add_label:
+            move_label = XY(5, 3)
+            label_thinkness = 3
         polygonObj = []
 
         points_list = []
@@ -622,9 +635,13 @@ class Keyboard:
                     polygonObj += (
                         text(part.text, size=4)
                         # .rotate(180)
-                        .translate(part.center_point.x + 5, part.center_point.y + 3, 3)
+                        .translate(
+                            part.center_point.x + move_label.x,
+                            part.center_point.y + move_label.y,
+                            3,
+                        )
                         .color("black")
-                        .linear_extrude(1)
+                        .linear_extrude(label_thinkness)
                     )
                 points_list.append(corner.get_tuple())
 
@@ -643,10 +660,7 @@ class Keyboard:
         for _x, _y in zip(x, y):
             points.append((_x, _y))
 
-        # if add_label:
-        # return polygonObj + polygon(points).linear_extrude(1)
-
-        return polygonObj + polygon(points).linear_extrude(2).down(0.5)
+        return polygonObj + polygon(points).linear_extrude(LAYER_THICKNESS).down(0.5)
 
     def draw_plate(self) -> OpenSCADObject:
         footprint_objs = union()
@@ -663,7 +677,7 @@ class Keyboard:
             self._draw_base_plate(add_label=ADD_LABEL)
             - footprint_objs
             + part_objs
-            - debug(part_addition_sub)
+            - part_addition_sub
             + part_addition_add
         )
 
