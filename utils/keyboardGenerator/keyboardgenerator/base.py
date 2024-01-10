@@ -272,7 +272,7 @@ class Pin(Part):
     # spacing: XY = XY(2.54, 2.54)  # Size
     # spacing: XY = XY(2.9, 2.9)  # Size
     hight: float = 5
-    diameter_inner: float = 2
+    diameter_inner: float = 2.5
     diameter_outter: float = 4
     spacing: XY = XY(diameter_outter, diameter_outter)  # Size
     size = None
@@ -287,6 +287,11 @@ class Pin(Part):
     )
     cylihder_outter: OpenSCADObject = cylinder(
         d=diameter_outter, h=hight, _fn=50, center=True
+    )
+    scraws_chamfer: OpenSCADObject = debug(
+        cylinder(d1=diameter_outter + 2, d2=diameter_inner, h=2, _fn=50, center=True)
+        .rotateX(180)
+        .up(0.7)
     )
 
     def get_openscad_obj(self) -> OpenSCADObject:
@@ -320,9 +325,9 @@ class PinPlate(Pin):
         )
 
     def draw_pcb_part_addition_sub(self) -> OpenSCADObject:
-        return self.cylihder_inner.rotate(self.angle_rotation).translate(
-            [self.center_point.x, self.center_point.y, 0]
-        )
+        return (
+            self.cylihder_inner.rotate(self.angle_rotation) + self.scraws_chamfer
+        ).translate([self.center_point.x, self.center_point.y, 0])
 
 
 class PinPcb(Pin):
@@ -352,9 +357,9 @@ class PinPcb(Pin):
         )
 
     def draw_bottom_part_addition_sub(self) -> OpenSCADObject:
-        return self.cylihder_inner.rotate(self.angle_rotation).translate(
-            [self.center_point.x, self.center_point.y, 0]
-        )
+        return (
+            self.cylihder_inner.rotate(self.angle_rotation) + self.scraws_chamfer
+        ).translate([self.center_point.x, self.center_point.y, 0])
 
     # Should be bottom palte
     # def draw__part_addition_sub(self) -> OpenSCADObject:
@@ -390,6 +395,17 @@ class Key(Part):
         )
         # return self._draw_footprint()
 
+    def draw_plate_part_addition_add(self) -> OpenSCADObject:
+        delta = 0.1
+        move_hight = (5 + delta + 0.5) / 2 - 0.8
+        return (
+            cube([self.hole_size.x + 1, self.hole_size.y + 1, 5], center=True)
+            - cube(
+                [self.hole_size.x, self.hole_size.y, 5 + 2],
+                center=True,
+            )
+        ).translate([self.center_point.x, self.center_point.y, move_hight])
+
     def get_openscad_obj(self) -> OpenSCADObject:
         return import_stl(self.openscad_file_path)
 
@@ -398,7 +414,7 @@ class Key(Part):
 
 class CherryMxKey(Key):
     spacing = XY(19.05, 19.05)  # Size
-    hole_size = XY(14, 14)  # Size
+    hole_size = XY(14.03, 14.03)  # Size
 
     footprint_plate: XY = spacing
     footprint_pcb: XY = hole_size
@@ -414,7 +430,7 @@ class CherryMxKey(Key):
 
 class KailhChocKey(Key):
     spacing = XY(19.05, 19.05)  # Size
-    hole_size = XY(14, 14)  # Size
+    hole_size = XY(14.03, 14.03)  # Size
 
     footprint_plate: XY = spacing
     footprint_pcb: XY = hole_size
@@ -435,6 +451,8 @@ class Arduino(Part):
     pins_row_space: int = 15  # mm
     pins_number: int = 12  # Each side
     pins_space: float = 2.54  # mm
+
+    arduino_header: tuple[float, float, float] = (11, 10, 4)  # [mm,mm,mm]
 
     holder_pole_size: tuple[float, float, float] = (3, 3, 4)  # [mm,mm,mm]
     holder_tooth_size: tuple[float, float, float] = (3, 3.5, 1)  # [mm,mm,mm]
@@ -466,6 +484,16 @@ class Arduino(Part):
     def _draw_holder_pin(self) -> OpenSCADObject:
         return cylinder(d=1, h=3, center=True).down(
             self.holder_pole_size[Z] / 2 + self.pcb_size[Z] / 2 - 1
+        )
+
+    def draw_bottom_part_addition_sub(self) -> OpenSCADObject:
+        print("draw_bottom_part_addition_sub")
+        return cube(self.arduino_header, center=True).translate(
+            [
+                self.center_point.x,
+                self.center_point.y - self.spacing.y / 2 + self.arduino_header[Y] / 2,
+                -1,
+            ]
         )
 
     def draw(self) -> OpenSCADObject:
