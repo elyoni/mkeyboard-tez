@@ -11,11 +11,11 @@ from keyboardgenerator.base import (
 
 
 class Arduino(Part):
-    spacing = XY(19, 37)  # Size
-    size = spacing
-    hole_size = XY(0, 0)
+    size = XY(19, 37)  # Size
+    footprint_plate: XY = XY(0, 0)
+    footprint_pcb: XY = size
 
-    pcb_size: tuple[float, float, float] = (spacing.x, spacing.y, 1)  # [mm,mm,mm]
+    pcb_size: tuple[float, float, float] = (size.x, size.y, 1)  # [mm,mm,mm]
     # pins_socket: tuple[float, float, float] = (3, 31.5, 4)  # [mm,mm,mm]
     pins_diameter: float = 1.5
     pins_row_space: int = 15  # mm
@@ -26,9 +26,6 @@ class Arduino(Part):
 
     holder_pole_size: tuple[float, float, float] = (3, 3, 4)  # [mm,mm,mm]
     holder_tooth_size: tuple[float, float, float] = (3, 3.5, 1)  # [mm,mm,mm]
-
-    footprint_plate: XY = hole_size
-    footprint_pcb: XY = spacing
 
     # openscad_file_path = "keyboardgenerator/KeySocket.stl"
 
@@ -63,7 +60,7 @@ class Arduino(Part):
         print("draw_bottom_part_addition_sub")
         return cuboid(self.arduino_header, anchor=BOTTOM).translate(
             self.center_point.x,
-            self.center_point.y - self.spacing.y / 2 + self.arduino_header[Y] / 2,
+            self.center_point.y - self.size.y / 2 + self.arduino_header[Y] / 2,
             -self.arduino_header[Z] + LAYER_THICKNESS / 2,
         )
         # return cube(self.arduino_header, center=True).translate(

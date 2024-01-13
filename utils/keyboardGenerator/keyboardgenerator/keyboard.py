@@ -109,14 +109,11 @@ class Keyboard:
             center_rotation = XY(part.rotation_x, part.rotation_y) * key_size_scale
 
             # If the object part_obj has a size attribute, use it else use the width and height
-            if not hasattr(part_obj, "size"):
+            if hasattr(part_obj, "spacing"):
                 size = XY(part.width, part.height) * part_obj.spacing
             else:
-                size = part_obj.size
+                size = None
 
-            # size = XY(part.width, part.height) * key_size_scale
-            # size = XY(part.width, part.height) * part_obj.spacing
-            # size = part_obj.spacing
             label = part.labels[cls.part_label_index]
             part_list.append(
                 part_obj(

@@ -17,8 +17,6 @@ from keyboardgenerator.base import (
 
 
 class Pin(Part):
-    # spacing: XY = XY(2.54, 2.54)  # Size
-    # spacing: XY = XY(2.9, 2.9)  # Size
     draw_delta = 0.5
     hight: float = 5
     inner_high: float = 5 + LAYER_THICKNESS + draw_delta
@@ -26,12 +24,10 @@ class Pin(Part):
     diameter_outter: float = 4
     scraws_outter_diameter = 2.5
     scraws_header_diameter = diameter_outter + 2.5
-    spacing: XY = XY(diameter_outter, diameter_outter)  # Size
-    size = spacing
-    hole_size: XY = XY(0, 0)  # Size
 
-    footprint_plate: XY = spacing
-    footprint_pcb: XY = hole_size
+    size = XY(diameter_outter, diameter_outter)
+    footprint_plate: XY = size
+    footprint_pcb: XY = XY(0, 0)
 
     base_cube_fill: OpenSCADObject = cuboid(
         [size.x, size.y, LAYER_THICKNESS], anchor=BOTTOM
@@ -103,7 +99,6 @@ class PinPcb(Pin):
 
     def draw_pcb_part(self) -> OpenSCADObject:
         return (
-            # cube([self.hole_size.x, self.hole_size.y, 5], center=True)
             self.get_openscad_obj()
             .rotate(self.angle_rotation)
             .translate([self.center_point.x, self.center_point.y, 0])

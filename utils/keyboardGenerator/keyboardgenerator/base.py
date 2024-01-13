@@ -149,20 +149,17 @@ class Corners:
 
 # General Keyboard part, can be a key, mcu, etc.
 class Part:
+    # Calculate in the init function
     corners: Corners
     center_point: XY  # Center XY of the part in mm NOT u.
     center_rotation: XY
-    angle_rotation: float  # Equle 0 If no need to rotate the part
-    openscad_file_path: str
-    openscad_obj: OpenSCADObject
-    size: XY
+    angle_rotation: float
     text: str
 
+    # Provide by the component class
+    size: XY
     footprint_pcb: XY
     footprint_plate: XY
-
-    spacing: XY = XY(0, 0)  # Size
-    hole_size: XY = XY(0, 0)  # Size
 
     # border_pcb: XY  # Add additional border to the part
     def __init__(
@@ -170,21 +167,22 @@ class Part:
         upper_left_corner: XY,
         angle_rotation: float,
         center_rotation: XY,
-        size: XY,
+        size: XY | None,
         text: str,
     ):
         self.text = text
+        if size is not None:
+            self.size = size
         # print("upper_left_corner", upper_left_corner, text)
-        self.center_point = (upper_left_corner + size / 2).rotate(
+        self.center_point = (upper_left_corner + self.size / 2).rotate(
             center_rotation, angle_rotation
         )
         # print("after upper_left_corner", self.center_point, text)
         self.center_rotation = center_rotation
         self.angle_rotation = angle_rotation
-        self.corners = Corners(upper_left_corner, size).rotate(
+        self.corners = Corners(upper_left_corner, self.size).rotate(
             center_rotation, angle_rotation
         )
-        self.size = size
 
     def get_openscad_obj(self) -> OpenSCADObject:
         raise NotImplementedError(
@@ -203,6 +201,7 @@ class Part:
 
     def draw_pcb_footprint(self) -> OpenSCADObject:
         if self.footprint_pcb == XY(0, 0):
+            # No footprint
             return union()
 
         return (
