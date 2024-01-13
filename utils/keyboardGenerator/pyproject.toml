@@ -10,7 +10,7 @@ python = ">=3.9,<3.13"
 pykle-serial = {git = "https://github.com/hajimen/pykle_serial.git"}
 matplotlib = "^3.8.0"
 scipy = "^1.11.3"
-solidpython2 = "^2.0.3"
+solidpython2 = "^2.1.0"
 
 
 [build-system]

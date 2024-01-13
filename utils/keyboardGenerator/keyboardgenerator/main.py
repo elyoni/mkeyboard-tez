@@ -1,25 +1,13 @@
 import pykle_serial as kle_serial
 import os
 
-# from pykle_serial.serial import Keyboard as KleKeyboard
 
-# from key import Key
-# from solid2.core.object_base import OpenSCADObject
-
-# from scipy.spatial import ConvexHull
-# import numpy as np
-# from solid2 import (
-# import_stl,
-# union,
-# polygon,
-# color,
-# )
-
-from keyboardgenerator.base import Keyboard
+# from keyboardgenerator.base import Keyboard
+from keyboardgenerator.keyboard import Keyboard
 
 
 def main():
-    keyboard_json = get_arcade_print()
+    keyboard_json = arduino_only()
     keyboard_plate = Keyboard.from_kle_obj(keyboard_json)
     keyboard_pcb = Keyboard.from_kle_obj(keyboard_json)
     keyboard_bottom = Keyboard.from_kle_obj(keyboard_json)
@@ -32,11 +20,15 @@ def main():
     plate.save_as_scad("plate.scad")
     bottom.save_as_scad("bottom.scad")
 
+    # pcb.save_as_stl("pcb.stl")
+    # plate.save_as_stl("plate.stl")
+    # bottom.save_as_stl("bottom.stl")
+
     # (pcb + plate + bottom).save_as_scad("keyboard.scad")
     # .save_as_scad("pcb.scad")
     # keyboard_bottom.draw_bottom().save_as_scad("bottom.scad")
 
-    (pcb.color("gray") + plate.down(40) + bottom.up(40).color("blue")).save_as_scad(
+    (pcb.color("gray") + plate.down(40) + bottom.up(40).color("aqua")).save_as_scad(
         "keyboard.scad"
     )
     print("Created new scad files")
@@ -262,6 +254,17 @@ def get_json_const_05() -> kle_serial.Keyboard:
 
 
 
+
+    ]"""
+    )
+    return keyboard
+
+
+def arduino_only() -> kle_serial.Keyboard:
+    keyboard = kle_serial.parse(
+        """[
+[{y:0.5,x:0.25,a:7,w:0.5,h:0.5},"PinPlate",{x:-0.25,w:0.75,h:2.25},"Arduino",{x:0.25,w:0.5,h:0.5},"PinPcb"],
+[{y:0.75,x:0.25,w:0.5,h:0.5},"PinPcb",{x:0.75,w:0.5,h:0.5},"PinPlate"]
 
     ]"""
     )
